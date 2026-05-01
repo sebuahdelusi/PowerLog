@@ -1,11 +1,12 @@
 import 'package:get/get.dart';
+import 'package:powerlog/data/repositories/auth_repository.dart';
 
 class DashboardController extends GetxController {
   final currentIndex = 0.obs;
+  final _repo = AuthRepository();
 
   void changePage(int index) {
     if (index == 3) {
-      // Logout — handled separately
       _handleLogout();
       return;
     }
@@ -18,8 +19,8 @@ class DashboardController extends GetxController {
       middleText: 'Are you sure you want to logout?',
       textConfirm: 'Yes',
       textCancel: 'Cancel',
-      onConfirm: () {
-        Get.back(); // close dialog
+      onConfirm: () async {
+        await _repo.logout();
         Get.offAllNamed('/login');
       },
     );
