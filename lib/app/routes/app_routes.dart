@@ -7,4 +7,5 @@ abstract class Routes {
   static const home = '/home';
   static const profile = '/profile';
   static const feedback = '/feedback';
+  static const nearestPln = '/nearest_pln';
 }

@@ -11,6 +11,8 @@ import '../../modules/profile/views/profile_view.dart';
 import '../../modules/profile/bindings/profile_binding.dart';
 import '../../modules/feedback/views/feedback_view.dart';
 import '../../modules/feedback/bindings/feedback_binding.dart';
+import '../../modules/nearest_pln/views/nearest_pln_view.dart';
+import '../../modules/nearest_pln/bindings/nearest_pln_binding.dart';
 
 part 'app_routes.dart';
 
@@ -47,6 +49,11 @@ class AppPages {
       name: Routes.feedback,
       page: () => const FeedbackView(),
       binding: FeedbackBinding(),
+    ),
+    GetPage(
+      name: Routes.nearestPln,
+      page: () => const NearestPlnView(),
+      binding: NearestPlnBinding(),
     ),
   ];
 }

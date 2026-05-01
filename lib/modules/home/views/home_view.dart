@@ -15,6 +15,17 @@ class HomeView extends GetView<HomeController> {
       appBar: AppBar(
         title: const Text('PowerLog'),
         actions: [
+          // Torch indicator
+          Obx(() => Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(
+                  Icons.flashlight_on,
+                  color: controller.isTorchOn.value
+                      ? AppColors.secondary
+                      : AppColors.textSecondary.withValues(alpha: 0.3),
+                  size: 20,
+                ),
+              )),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
             onPressed: controller.loadLogs,
@@ -24,6 +35,7 @@ class HomeView extends GetView<HomeController> {
       ),
       body: Column(
         children: [
+          _GyroHeader(),
           _InputCard(),
           const SizedBox(height: 4),
           _SectionHeader(),
@@ -34,13 +46,113 @@ class HomeView extends GetView<HomeController> {
   }
 }
 
+// ── Gyroscope tilt header ─────────────────────────────────────────────────────
+
+class _GyroHeader extends GetView<HomeController> {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      // Normalize to subtle tilt: max ±0.06 radians
+      final tiltX = (controller.gyroX.value / 5.0) * 0.06;
+      final tiltY = (controller.gyroY.value / 5.0) * 0.06;
+
+      return Transform(
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001) // perspective
+          ..rotateX(-tiltX)
+          ..rotateY(tiltY),
+        alignment: Alignment.center,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF003545), Color(0xFF001A2E)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Animated electric icon
+              ShaderMask(
+                shaderCallback: (bounds) =>
+                    AppColors.primaryGradient.createShader(bounds),
+                child: const Icon(Icons.bolt, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Electricity Monitor',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'Tilt your phone to see the effect ↕',
+                      style: TextStyle(
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // PLN button
+              GestureDetector(
+                onTap: controller.goToNearestPln,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on_outlined,
+                          color: AppColors.primary, size: 14),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'PLN',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
 // ── Input card ────────────────────────────────────────────────────────────────
 
 class _InputCard extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: AppColors.cardGradient,
@@ -68,7 +180,8 @@ class _InputCard extends GetView<HomeController> {
                     color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.flash_on, color: AppColors.primary, size: 20),
+                  child: const Icon(Icons.flash_on,
+                      color: AppColors.primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Column(
@@ -98,7 +211,8 @@ class _InputCard extends GetView<HomeController> {
             // kWh input
             TextFormField(
               controller: controller.kwhCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: AppColors.textPrimary),
               onChanged: (v) => controller.kwhInput.value = v,
               validator: (v) {
@@ -112,33 +226,26 @@ class _InputCard extends GetView<HomeController> {
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 hintText: 'e.g. 12.5',
                 hintStyle: TextStyle(
-                  color: AppColors.textSecondary.withValues(alpha: 0.5),
-                ),
+                    color: AppColors.textSecondary.withValues(alpha: 0.5)),
                 suffixText: 'kWh',
                 suffixStyle: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-                prefixIcon: const Icon(
-                  Icons.electrical_services_outlined,
-                  color: AppColors.textSecondary,
-                  size: 20,
-                ),
+                    color: AppColors.primary, fontWeight: FontWeight.bold),
+                prefixIcon: const Icon(Icons.electrical_services_outlined,
+                    color: AppColors.textSecondary, size: 20),
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: AppColors.textSecondary.withValues(alpha: 0.2),
-                  ),
+                      color: AppColors.textSecondary.withValues(alpha: 0.2)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -146,7 +253,8 @@ class _InputCard extends GetView<HomeController> {
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.error, width: 1.5),
                 ),
               ),
             ),
@@ -155,29 +263,30 @@ class _InputCard extends GetView<HomeController> {
 
             // Live cost preview
             Obx(() {
-              final kwh = double.tryParse(controller.kwhInput.value.trim()) ?? 0;
+              final kwh =
+                  double.tryParse(controller.kwhInput.value.trim()) ?? 0;
               final cost = controller.previewCost;
               if (kwh <= 0) return const SizedBox.shrink();
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.secondary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: AppColors.secondary.withValues(alpha: 0.3),
-                  ),
+                      color: AppColors.secondary.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.attach_money, color: AppColors.secondary, size: 16),
+                    const Icon(Icons.attach_money,
+                        color: AppColors.secondary, size: 16),
                     const SizedBox(width: 8),
                     Text(
                       'Estimated cost: ${_formatCurrency(cost)}',
                       style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                          color: AppColors.secondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -188,10 +297,9 @@ class _InputCard extends GetView<HomeController> {
             Obx(() => controller.errorMessage.value.isNotEmpty
                 ? Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      controller.errorMessage.value,
-                      style: const TextStyle(color: AppColors.error, fontSize: 12),
-                    ),
+                    child: Text(controller.errorMessage.value,
+                        style: const TextStyle(
+                            color: AppColors.error, fontSize: 12)),
                   )
                 : const SizedBox.shrink()),
 
@@ -202,31 +310,27 @@ class _InputCard extends GetView<HomeController> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
-                    onPressed: controller.isSaving.value ? null : controller.addLog,
+                    onPressed:
+                        controller.isSaving.value ? null : controller.addLog,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.black,
-                      disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+                      disabledBackgroundColor:
+                          AppColors.primary.withValues(alpha: 0.4),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     icon: controller.isSaving.value
                         ? const SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.black,
-                            ),
-                          )
+                                strokeWidth: 2, color: Colors.black))
                         : const Icon(Icons.save_outlined, size: 18),
                     label: Text(
                       controller.isSaving.value ? 'Saving…' : 'Save Log',
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
+                          fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   ),
                 )),
@@ -243,45 +347,38 @@ class _SectionHeader extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Row(
         children: [
-          const Text(
-            'Usage History',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          const Text('Usage History',
+              style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           Obx(() => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  '${controller.logs.length}',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: Text('${controller.logs.length}',
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
               )),
           const Spacer(),
-          const Text(
-            'Swipe to delete',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
-          ),
+          const Text('Swipe to delete',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
         ],
       ),
     );
   }
 }
 
-// ── Log list ─────────────────────────────────────────────────────────────────
+// ── Log list ──────────────────────────────────────────────────────────────────
 
 class _LogList extends GetView<HomeController> {
   @override
@@ -289,14 +386,9 @@ class _LogList extends GetView<HomeController> {
     return Obx(() {
       if (controller.isLoading.value) {
         return const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        );
+            child: CircularProgressIndicator(color: AppColors.primary));
       }
-
-      if (controller.logs.isEmpty) {
-        return _EmptyState();
-      }
-
+      if (controller.logs.isEmpty) return _EmptyState();
       return ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         itemCount: controller.logs.length,
@@ -330,7 +422,8 @@ class _LogItem extends GetView<HomeController> {
           children: [
             Icon(Icons.delete_outline, color: Colors.white, size: 24),
             SizedBox(height: 4),
-            Text('Delete', style: TextStyle(color: Colors.white, fontSize: 11)),
+            Text('Delete',
+                style: TextStyle(color: Colors.white, fontSize: 11)),
           ],
         ),
       ),
@@ -345,7 +438,6 @@ class _LogItem extends GetView<HomeController> {
         ),
         child: Row(
           children: [
-            // Icon
             Container(
               width: 44,
               height: 44,
@@ -353,66 +445,51 @@ class _LogItem extends GetView<HomeController> {
                 color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.bolt, color: AppColors.primary, size: 22),
+              child:
+                  const Icon(Icons.bolt, color: AppColors.primary, size: 22),
             ),
             const SizedBox(width: 14),
-
-            // Date + kWh
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _formatDate(log.date),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text(_formatDate(log.date),
+                      style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.electrical_services,
-                          size: 13, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${log.kwhUsage.toStringAsFixed(2)} kWh',
+                  Row(children: [
+                    const Icon(Icons.electrical_services,
+                        size: 13, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text('${log.kwhUsage.toStringAsFixed(2)} kWh',
                         style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+                            color: AppColors.textSecondary, fontSize: 12)),
+                  ]),
                 ],
               ),
             ),
-
-            // Cost badge
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.secondary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    _formatCurrency(log.estimatedCost),
-                    style: const TextStyle(
-                      color: AppColors.secondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: Text(_formatCurrency(log.estimatedCost),
+                      style: const TextStyle(
+                          color: AppColors.secondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'estimated',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
-                ),
+                const Text('estimated',
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 10)),
               ],
             ),
           ],
@@ -423,8 +500,7 @@ class _LogItem extends GetView<HomeController> {
 
   String _formatDate(String iso) {
     try {
-      final dt = DateTime.parse(iso);
-      return DateFormat('EEE, d MMM yyyy').format(dt);
+      return DateFormat('EEE, d MMM yyyy').format(DateTime.parse(iso));
     } catch (_) {
       return iso;
     }
@@ -440,25 +516,18 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 64,
-            color: AppColors.textSecondary.withValues(alpha: 0.4),
-          ),
+          Icon(Icons.inbox_outlined,
+              size: 64,
+              color: AppColors.textSecondary.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
-          const Text(
-            'No logs yet',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          const Text('No logs yet',
+              style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500)),
           const SizedBox(height: 8),
-          const Text(
-            'Add your first electricity usage above',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-          ),
+          const Text('Add your first electricity usage above',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
         ],
       ),
     );
@@ -468,10 +537,7 @@ class _EmptyState extends StatelessWidget {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 String _formatCurrency(double amount) {
-  final formatter = NumberFormat.currency(
-    locale: 'id_ID',
-    symbol: 'Rp ',
-    decimalDigits: 0,
-  );
-  return formatter.format(amount);
+  return NumberFormat.currency(
+          locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+      .format(amount);
 }

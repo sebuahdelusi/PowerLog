@@ -1,36 +1,79 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:powerlog/data/models/log_model.dart';
 import 'package:powerlog/data/repositories/log_repository.dart';
+import 'package:powerlog/services/sensor_service.dart';
 
 class HomeController extends GetxController {
   final _repo = LogRepository();
+  final _sensors = SensorService();
 
   // ── State ────────────────────────────────────────────────────────────────
   final logs = <LogModel>[].obs;
   final isLoading = false.obs;
   final isSaving = false.obs;
   final errorMessage = ''.obs;
-  final kwhInput = ''.obs; // tracks live input for cost preview
+  final kwhInput = ''.obs;
 
-  // ── Form ─────────────────────────────────────────────────────────────────
+  // ── Gyroscope ─────────────────────────────────────────────────────────────
+  final gyroX = 0.0.obs; // angular velocity x-axis
+  final gyroY = 0.0.obs; // angular velocity y-axis
+
+  // ── Torch indicator ───────────────────────────────────────────────────────
+  final isTorchOn = false.obs;
+
+  // ── Form ──────────────────────────────────────────────────────────────────
   final kwhCtrl = TextEditingController();
   final formKey = GlobalKey<FormState>();
+
+  // ── Subscriptions ─────────────────────────────────────────────────────────
+  StreamSubscription<void>? _shakeSub;
+  StreamSubscription<GyroscopeEvent>? _gyroSub;
 
   @override
   void onInit() {
     super.onInit();
     kwhCtrl.addListener(() => kwhInput.value = kwhCtrl.text);
+    _initSensors();
     loadLogs();
   }
 
   @override
   void onClose() {
     kwhCtrl.dispose();
+    _shakeSub?.cancel();
+    _gyroSub?.cancel();
+    _sensors.dispose();
     super.onClose();
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Sensor init ───────────────────────────────────────────────────────────
+
+  Future<void> _initSensors() async {
+    await _sensors.init();
+
+    // Listen for shake events (sensor toggles torch internally)
+    _shakeSub = _sensors.onShake.listen((_) {
+      isTorchOn.value = _sensors.isTorchOn;
+      Get.snackbar(
+        isTorchOn.value ? '🔦 Torch ON' : '🔦 Torch OFF',
+        'Shake detected!',
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 1),
+        margin: const EdgeInsets.all(12),
+      );
+    });
+
+    // Listen for gyroscope events for tilt UI effect
+    _gyroSub = _sensors.gyroscopeStream.listen((event) {
+      gyroX.value = event.x.clamp(-5.0, 5.0);
+      gyroY.value = event.y.clamp(-5.0, 5.0);
+    });
+  }
+
+  // ── CRUD ──────────────────────────────────────────────────────────────────
 
   Future<void> loadLogs() async {
     isLoading.value = true;
@@ -67,9 +110,12 @@ class HomeController extends GetxController {
     await loadLogs();
   }
 
-  /// Preview estimated cost while user types.
   double get previewCost {
     final kwh = double.tryParse(kwhInput.value.trim()) ?? 0;
     return _repo.calculateCost(kwh);
   }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+
+  void goToNearestPln() => Get.toNamed('/nearest_pln');
 }
