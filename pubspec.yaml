@@ -48,6 +48,7 @@ dependencies:
   torch_light: ^1.1.0
   geolocator: ^14.0.2
   url_launcher: ^6.3.2
+  google_generative_ai: ^0.4.7
 
 dev_dependencies:
   flutter_test:

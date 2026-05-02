@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../data/models/log_model.dart';
+import '../../../utils/currency_converter.dart';
 import '../controllers/home_controller.dart';
 
 class HomeView extends GetView<HomeController> {
@@ -41,6 +42,14 @@ class HomeView extends GetView<HomeController> {
           _SectionHeader(),
           Expanded(child: _LogList()),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Get.toNamed('/chat'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.black,
+        icon: const Icon(Icons.auto_awesome, size: 20),
+        label: const Text('AI Tips',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -487,10 +496,115 @@ class _LogItem extends GetView<HomeController> {
                           fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 4),
-                const Text('estimated',
+                // Currency convert button
+                GestureDetector(
+                  onTap: () => _showCurrencySheet(context),
+                  child: const Text(
+                    'convert ↔',
                     style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 10)),
+                        color: AppColors.primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCurrencySheet(BuildContext context) {
+    final converted = CurrencyConverter.fromIDR(log.estimatedCost);
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.currency_exchange, color: AppColors.primary),
+                const SizedBox(width: 10),
+                const Text('Currency Conversion',
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Get.back(),
+                  child: const Icon(Icons.close,
+                      color: AppColors.textSecondary, size: 20),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Base: ${_formatCurrency(log.estimatedCost)} IDR',
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 12),
+            ),
+            const Divider(color: AppColors.surfaceLight, height: 24),
+            ...CurrencyConverter.currencies.map((code) {
+              final amount = converted[code]!;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Text(
+                          CurrencyConverter.symbols[code]!,
+                          style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(code,
+                            style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                                letterSpacing: 1)),
+                        Text(
+                          CurrencyConverter.format(code, amount),
+                          style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                'Rates are approximate (mid-2025)',
+                style: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                    fontSize: 10),
+              ),
             ),
           ],
         ),

@@ -1,5 +1,54 @@
+import 'dart:async';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:powerlog/services/session_service.dart';
+import 'package:powerlog/utils/timezone_converter.dart';
 
 class ProfileController extends GetxController {
-  // TODO: Profile image, user data, currency/timezone conversion
+  final _session = SessionService();
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  final username = ''.obs;
+  final currentTime = DateTime.now().obs; // UTC, updated every second
+
+  Timer? _clockTimer;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _loadUsername();
+    _startClock();
+  }
+
+  @override
+  void onClose() {
+    _clockTimer?.cancel();
+    super.onClose();
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  Future<void> _loadUsername() async {
+    final name = await _session.getSessionUsername();
+    username.value = name ?? 'User';
+  }
+
+  void _startClock() {
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      currentTime.value = DateTime.now();
+    });
+  }
+
+  /// Returns formatted time for a given timezone info.
+  String timeFor(TzInfo tz) {
+    final converted = TimezoneConverter.toZone(tz, currentTime.value);
+    return DateFormat('HH:mm:ss').format(converted);
+  }
+
+  String dateFor(TzInfo tz) {
+    final converted = TimezoneConverter.toZone(tz, currentTime.value);
+    return DateFormat('EEE, d MMM').format(converted);
+  }
+
+  List<TzInfo> get timezones => TimezoneConverter.zones;
 }

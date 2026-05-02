@@ -13,6 +13,8 @@ import '../../modules/feedback/views/feedback_view.dart';
 import '../../modules/feedback/bindings/feedback_binding.dart';
 import '../../modules/nearest_pln/views/nearest_pln_view.dart';
 import '../../modules/nearest_pln/bindings/nearest_pln_binding.dart';
+import '../../modules/chat/views/chat_view.dart';
+import '../../modules/chat/bindings/chat_binding.dart';
 
 part 'app_routes.dart';
 
@@ -54,6 +56,11 @@ class AppPages {
       name: Routes.nearestPln,
       page: () => const NearestPlnView(),
       binding: NearestPlnBinding(),
+    ),
+    GetPage(
+      name: Routes.chat,
+      page: () => const ChatView(),
+      binding: ChatBinding(),
     ),
   ];
 }
