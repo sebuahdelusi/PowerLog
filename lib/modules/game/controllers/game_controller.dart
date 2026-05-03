@@ -136,8 +136,12 @@ class GameController extends GetxController {
     poweredCells
       ..clear()
       ..addAll(powered);
+
+    final wasAlreadyWon = isWon.value;
     isWon.value = won;
-    if (won) Future.delayed(const Duration(milliseconds: 400), _showSuccess);
+    if (won && !wasAlreadyWon) {
+      Future.delayed(const Duration(milliseconds: 400), _showSuccess);
+    }
   }
 
   void _showSuccess() {
