@@ -15,6 +15,8 @@ import '../../modules/nearest_pln/views/nearest_pln_view.dart';
 import '../../modules/nearest_pln/bindings/nearest_pln_binding.dart';
 import '../../modules/chat/views/chat_view.dart';
 import '../../modules/chat/bindings/chat_binding.dart';
+import '../../modules/game/views/game_view.dart';
+import '../../modules/game/bindings/game_binding.dart';
 
 part 'app_routes.dart';
 
@@ -61,6 +63,11 @@ class AppPages {
       name: Routes.chat,
       page: () => const ChatView(),
       binding: ChatBinding(),
+    ),
+    GetPage(
+      name: Routes.game,
+      page: () => const GameView(),
+      binding: GameBinding(),
     ),
   ];
 }

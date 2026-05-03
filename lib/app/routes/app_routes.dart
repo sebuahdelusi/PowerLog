@@ -9,4 +9,5 @@ abstract class Routes {
   static const feedback = '/feedback';
   static const nearestPln = '/nearest_pln';
   static const chat = '/chat';
+  static const game = '/game';
 }

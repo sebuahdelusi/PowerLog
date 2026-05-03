@@ -129,16 +129,47 @@ class _GyroHeader extends GetView<HomeController> {
                       color: AppColors.primary.withValues(alpha: 0.4),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.location_on_outlined,
+                      Icon(Icons.location_on_outlined,
                           color: AppColors.primary, size: 14),
-                      const SizedBox(width: 4),
-                      const Text(
+                      SizedBox(width: 4),
+                      Text(
                         'PLN',
                         style: TextStyle(
                           color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Game button
+              GestureDetector(
+                onTap: () => Get.toNamed('/game'),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('🎮', style: TextStyle(fontSize: 12)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Game',
+                        style: TextStyle(
+                          color: AppColors.accent,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
