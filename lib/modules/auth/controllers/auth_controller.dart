@@ -64,25 +64,29 @@ class AuthController extends GetxController {
   Future<void> loginWithBiometrics() async {
     if (!biometricAvailable.value) return;
 
-    // Must have an active session to restore — biometric confirms identity
-    final hasSession = await _repo.hasActiveSession();
-    if (!hasSession) {
-      errorMessage.value = 'No saved session. Please login with password first.';
-      return;
-    }
-
     isLoading.value = true;
     final authenticated = await _biometric.authenticate();
-    isLoading.value = false;
 
     if (authenticated) {
-      Get.offAllNamed('/dashboard');
+      final error = await _repo.loginWithSavedBiometric();
+      isLoading.value = false;
+      
+      if (error != null) {
+        errorMessage.value = error;
+      } else {
+        Get.offAllNamed('/dashboard');
+      }
     } else {
+      isLoading.value = false;
       errorMessage.value = 'Biometric authentication failed.';
     }
   }
 
   Future<void> _checkBiometric() async {
-    biometricAvailable.value = await _biometric.isAvailable();
+    final available = await _biometric.isAvailable();
+    final enabled = await _repo.isBiometricEnabled();
+    final username = await _repo.getSessionUsername();
+    
+    biometricAvailable.value = available && enabled && (username != null);
   }
 }

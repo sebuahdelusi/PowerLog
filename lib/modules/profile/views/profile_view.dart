@@ -19,6 +19,8 @@ class ProfileView extends GetView<ProfileController> {
           children: [
             _ProfileCard(),
             const SizedBox(height: 20),
+            _SettingsSection(),
+            const SizedBox(height: 20),
             _TimezoneSection(),
           ],
         ),
@@ -75,6 +77,57 @@ class _ProfileCard extends GetView<ProfileController> {
         ],
       ),
     );
+  }
+}
+
+// ── Settings section ────────────────────────────────────────────────────────────
+
+class _SettingsSection extends GetView<ProfileController> {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (!controller.isBiometricSupported.value) return const SizedBox.shrink();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.settings_outlined, color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Settings',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+            ),
+            child: SwitchListTile(
+              value: controller.isBiometricEnabled.value,
+              onChanged: controller.toggleBiometric,
+              title: const Text('Biometric Login',
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+              subtitle: const Text('Use fingerprint/face to login after logout',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              secondary: const Icon(Icons.fingerprint, color: AppColors.primary),
+              activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+              activeThumbColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 

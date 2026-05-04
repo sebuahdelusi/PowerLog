@@ -1,15 +1,22 @@
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:powerlog/data/repositories/auth_repository.dart';
+import 'package:powerlog/services/biometric_service.dart';
 import 'package:powerlog/services/session_service.dart';
 import 'package:powerlog/utils/timezone_converter.dart';
 
 class ProfileController extends GetxController {
   final _session = SessionService();
+  final _repo = AuthRepository();
+  final _biometric = BiometricService();
 
   // ── State ─────────────────────────────────────────────────────────────────
   final username = ''.obs;
   final currentTime = DateTime.now().obs; // UTC, updated every second
+  
+  final isBiometricSupported = false.obs;
+  final isBiometricEnabled = false.obs;
 
   Timer? _clockTimer;
 
@@ -18,6 +25,7 @@ class ProfileController extends GetxController {
     super.onInit();
     _loadUsername();
     _startClock();
+    _checkBiometric();
   }
 
   @override
@@ -31,6 +39,26 @@ class ProfileController extends GetxController {
   Future<void> _loadUsername() async {
     final name = await _session.getSessionUsername();
     username.value = name ?? 'User';
+  }
+
+  Future<void> _checkBiometric() async {
+    isBiometricSupported.value = await _biometric.isAvailable();
+    if (isBiometricSupported.value) {
+      isBiometricEnabled.value = await _repo.isBiometricEnabled();
+    }
+  }
+
+  Future<void> toggleBiometric(bool val) async {
+    if (val) {
+      // Require auth to enable
+      final auth = await _biometric.authenticate();
+      if (!auth) {
+        Get.snackbar('Failed', 'Biometric authentication failed.');
+        return;
+      }
+    }
+    isBiometricEnabled.value = val;
+    await _repo.setBiometricEnabled(val);
   }
 
   void _startClock() {

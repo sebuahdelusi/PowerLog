@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SessionService {
   static const _keySessionToken = 'session_token';
   static const _keyUsername = 'session_username';
+  static const _keyBiometricEnabled = 'biometric_enabled';
 
   final _storage = const FlutterSecureStorage();
 
@@ -23,9 +24,21 @@ class SessionService {
     return _storage.read(key: _keyUsername);
   }
 
+  Future<void> setBiometricEnabled(bool enabled) async {
+    await _storage.write(key: _keyBiometricEnabled, value: enabled.toString());
+  }
+
+  Future<bool> isBiometricEnabled() async {
+    final val = await _storage.read(key: _keyBiometricEnabled);
+    return val == 'true';
+  }
+
   Future<void> clearSession() async {
     await _storage.delete(key: _keySessionToken);
-    await _storage.delete(key: _keyUsername);
+    final bio = await isBiometricEnabled();
+    if (!bio) {
+      await _storage.delete(key: _keyUsername);
+    }
   }
 
   String _buildToken(String username) {

@@ -48,4 +48,22 @@ class AuthRepository {
   Future<bool> hasActiveSession() => _session.hasActiveSession();
   Future<String?> getSessionUsername() => _session.getSessionUsername();
   Future<void> logout() => _session.clearSession();
+
+  Future<bool> isBiometricEnabled() => _session.isBiometricEnabled();
+  Future<void> setBiometricEnabled(bool enabled) => _session.setBiometricEnabled(enabled);
+
+  Future<String?> loginWithSavedBiometric() async {
+    try {
+      final username = await _session.getSessionUsername();
+      if (username == null) return 'No saved user. Please login with password first.';
+      
+      final user = await _db.getUserByUsername(username);
+      if (user == null) return 'User no longer exists.';
+      
+      await _session.saveSession(username);
+      return null;
+    } catch (e) {
+      return 'Biometric login error: $e';
+    }
+  }
 }
