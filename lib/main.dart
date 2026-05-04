@@ -3,8 +3,11 @@ import 'package:get/get.dart';
 import 'app/routes/app_pages.dart';
 import 'app/theme/app_theme.dart';
 
-void main() {
+import '../services/notification_service.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Get.putAsync(() => NotificationService().init());
   runApp(const PowerLogApp());
 }
 

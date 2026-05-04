@@ -76,21 +76,46 @@ Always respond in the same language the user writes in (Indonesian or English).
     isTyping.value = true;
     _scrollToBottom();
 
-    try {
-      final response = await _chat.sendMessage(Content.text(text));
-      final reply = response.text ?? 'Sorry, I could not generate a response.';
-      messages.add(ChatMessage(text: reply, isUser: false, timestamp: DateTime.now()));
-    } catch (e) {
-      final isKeyError = e.toString().contains('API_KEY') ||
-          e.toString().contains('invalid') ||
-          e.toString().contains('403');
-      messages.add(ChatMessage(
-        text: isKeyError
-            ? '⚠️ Invalid API key. Please update AppConfig.geminiApiKey with a valid key from https://aistudio.google.com/apikey'
-            : '⚠️ Error: ${e.toString()}',
-        isUser: false,
-        timestamp: DateTime.now(),
-      ));
+    int retries = 2;
+    while (retries >= 0) {
+      try {
+        final response = await _chat.sendMessage(Content.text(text));
+        final reply = response.text ?? 'Sorry, I could not generate a response.';
+        messages.add(ChatMessage(text: reply, isUser: false, timestamp: DateTime.now()));
+        break; // Success
+      } catch (e) {
+        final errStr = e.toString();
+        final isHighDemand = errStr.contains('503') || 
+            errStr.contains('high demand') || 
+            errStr.contains('UNAVAILABLE');
+
+        if (isHighDemand && retries > 0) {
+          retries--;
+          await Future.delayed(const Duration(seconds: 2));
+          continue; // Retry on 503
+        }
+
+        final isKeyError = errStr.contains('API_KEY') ||
+            errStr.contains('invalid') ||
+            errStr.contains('403');
+
+        String errorMsg;
+        if (isKeyError) {
+          errorMsg = '⚠️ Invalid API key. Please update AppConfig.';
+        } else if (isHighDemand) {
+          errorMsg = '⏳ The AI server is experiencing high demand. Please try again in a moment.';
+        } else {
+          // Revert back to generic network error for other unhandled exceptions
+          errorMsg = '⚠️ Network error. Please check your internet connection and try again.';
+        }
+
+        messages.add(ChatMessage(
+          text: errorMsg,
+          isUser: false,
+          timestamp: DateTime.now(),
+        ));
+        break; // Exit loop on failure
+      }
     } finally {
       isTyping.value = false;
       _scrollToBottom();

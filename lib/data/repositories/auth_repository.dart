@@ -52,6 +52,9 @@ class AuthRepository {
   Future<bool> isBiometricEnabled() => _session.isBiometricEnabled();
   Future<void> setBiometricEnabled(bool enabled) => _session.setBiometricEnabled(enabled);
 
+  Future<bool> isNotificationEnabled() => _session.isNotificationEnabled();
+  Future<void> setNotificationEnabled(bool enabled) => _session.setNotificationEnabled(enabled);
+
   Future<String?> loginWithSavedBiometric() async {
     try {
       final username = await _session.getSessionUsername();

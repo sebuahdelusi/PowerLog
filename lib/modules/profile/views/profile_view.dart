@@ -86,8 +86,6 @@ class _SettingsSection extends GetView<ProfileController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (!controller.isBiometricSupported.value) return const SizedBox.shrink();
-
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -112,17 +110,36 @@ class _SettingsSection extends GetView<ProfileController> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
             ),
-            child: SwitchListTile(
-              value: controller.isBiometricEnabled.value,
-              onChanged: controller.toggleBiometric,
-              title: const Text('Biometric Login',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-              subtitle: const Text('Use fingerprint/face to login after logout',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-              secondary: const Icon(Icons.fingerprint, color: AppColors.primary),
-              activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
-              activeThumbColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              children: [
+                if (controller.isBiometricSupported.value) ...[
+                  SwitchListTile(
+                    value: controller.isBiometricEnabled.value,
+                    onChanged: controller.toggleBiometric,
+                    title: const Text('Biometric Login',
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                    subtitle: const Text('Use fingerprint/face to login after logout',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                    secondary: const Icon(Icons.fingerprint, color: AppColors.primary),
+                    activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                    activeThumbColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  const Divider(color: AppColors.surfaceLight, height: 1),
+                ],
+                SwitchListTile(
+                  value: controller.isNotificationEnabled.value,
+                  onChanged: controller.toggleNotification,
+                  title: const Text('Daily Reminder',
+                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                  subtitle: const Text('Remind me to log my electricity usage every day',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                  secondary: const Icon(Icons.notifications_active_outlined, color: AppColors.primary),
+                  activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                  activeThumbColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ],
             ),
           ),
         ],

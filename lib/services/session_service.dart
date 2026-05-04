@@ -5,6 +5,7 @@ class SessionService {
   static const _keySessionToken = 'session_token';
   static const _keyUsername = 'session_username';
   static const _keyBiometricEnabled = 'biometric_enabled';
+  static const _keyNotificationEnabled = 'notification_enabled';
 
   final _storage = const FlutterSecureStorage();
 
@@ -30,6 +31,15 @@ class SessionService {
 
   Future<bool> isBiometricEnabled() async {
     final val = await _storage.read(key: _keyBiometricEnabled);
+    return val == 'true';
+  }
+
+  Future<void> setNotificationEnabled(bool enabled) async {
+    await _storage.write(key: _keyNotificationEnabled, value: enabled.toString());
+  }
+
+  Future<bool> isNotificationEnabled() async {
+    final val = await _storage.read(key: _keyNotificationEnabled);
     return val == 'true';
   }
 

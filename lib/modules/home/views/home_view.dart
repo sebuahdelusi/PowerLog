@@ -391,37 +391,60 @@ class _InputCard extends GetView<HomeController> {
   }
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
+// ── Section header & Search ──────────────────────────────────────────────────
 
 class _SectionHeader extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Usage History',
-              style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(width: 8),
-          Obx(() => Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text('${controller.logs.length}',
-                    style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-              )),
-          const Spacer(),
-          const Text('Swipe to delete',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+          Row(
+            children: [
+              const Text('Usage History',
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              Obx(() => Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text('${controller.filteredLogs.length}',
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
+                  )),
+              const Spacer(),
+              const Text('Swipe to delete',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Search Field
+          TextField(
+            onChanged: (v) => controller.searchQuery.value = v,
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Search by date or kWh...',
+              hintStyle: TextStyle(
+                  color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 13),
+              prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+              filled: true,
+              fillColor: AppColors.surfaceLight,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+            ),
+          ),
         ],
       ),
     );
@@ -438,11 +461,12 @@ class _LogList extends GetView<HomeController> {
         return const Center(
             child: CircularProgressIndicator(color: AppColors.primary));
       }
-      if (controller.logs.isEmpty) return _EmptyState();
+      final list = controller.filteredLogs;
+      if (list.isEmpty) return _EmptyState();
       return ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        itemCount: controller.logs.length,
-        itemBuilder: (ctx, i) => _LogItem(log: controller.logs[i]),
+        itemCount: list.length,
+        itemBuilder: (ctx, i) => _LogItem(log: list[i]),
       );
     });
   }

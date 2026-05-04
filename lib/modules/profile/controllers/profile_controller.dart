@@ -5,6 +5,7 @@ import 'package:powerlog/data/repositories/auth_repository.dart';
 import 'package:powerlog/services/biometric_service.dart';
 import 'package:powerlog/services/session_service.dart';
 import 'package:powerlog/utils/timezone_converter.dart';
+import 'package:powerlog/services/notification_service.dart' as powerlog_notification;
 
 class ProfileController extends GetxController {
   final _session = SessionService();
@@ -17,6 +18,7 @@ class ProfileController extends GetxController {
   
   final isBiometricSupported = false.obs;
   final isBiometricEnabled = false.obs;
+  final isNotificationEnabled = false.obs;
 
   Timer? _clockTimer;
 
@@ -26,6 +28,7 @@ class ProfileController extends GetxController {
     _loadUsername();
     _startClock();
     _checkBiometric();
+    _loadNotificationSetting();
   }
 
   @override
@@ -35,6 +38,10 @@ class ProfileController extends GetxController {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  Future<void> _loadNotificationSetting() async {
+    isNotificationEnabled.value = await _repo.isNotificationEnabled();
+  }
 
   Future<void> _loadUsername() async {
     final name = await _session.getSessionUsername();
@@ -59,6 +66,18 @@ class ProfileController extends GetxController {
     }
     isBiometricEnabled.value = val;
     await _repo.setBiometricEnabled(val);
+  }
+
+  Future<void> toggleNotification(bool val) async {
+    isNotificationEnabled.value = val;
+    await _repo.setNotificationEnabled(val);
+    
+    try {
+      final notifService = Get.find<powerlog_notification.NotificationService>();
+      await notifService.scheduleDailyReminder(val);
+    } catch (e) {
+      // Service not found
+    }
   }
 
   void _startClock() {

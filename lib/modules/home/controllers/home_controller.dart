@@ -16,6 +16,18 @@ class HomeController extends GetxController {
   final isSaving = false.obs;
   final errorMessage = ''.obs;
   final kwhInput = ''.obs;
+  final searchQuery = ''.obs;
+
+  List<LogModel> get filteredLogs {
+    final query = searchQuery.value.toLowerCase().trim();
+    if (query.isEmpty) return logs;
+    return logs.where((log) {
+      final dateStr = log.date.toLowerCase();
+      final costStr = log.estimatedCost.toStringAsFixed(0);
+      final kwhStr = log.kwhUsage.toStringAsFixed(2);
+      return dateStr.contains(query) || costStr.contains(query) || kwhStr.contains(query);
+    }).toList();
+  }
 
   // ── Gyroscope ─────────────────────────────────────────────────────────────
   final gyroX = 0.0.obs; // angular velocity x-axis
