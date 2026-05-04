@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^flutter --version$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
