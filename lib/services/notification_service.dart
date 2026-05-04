@@ -23,13 +23,13 @@ class NotificationService extends GetxService {
       iOS: iosInit,
     );
 
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(settings: initSettings);
     return this;
   }
 
   Future<void> scheduleDailyReminder(bool enable) async {
     if (!enable) {
-      await _plugin.cancel(0);
+      await _plugin.cancel(id: 0);
       return;
     }
 
@@ -42,11 +42,11 @@ class NotificationService extends GetxService {
     }
 
     await _plugin.zonedSchedule(
-      0,
-      'Log Your Electricity Usage ⚡',
-      "Don't forget to log today's kWh usage to track your expenses!",
-      scheduledDate,
-      const NotificationDetails(
+      id: 0,
+      title: 'Log Your Electricity Usage ⚡',
+      body: "Don't forget to log today's kWh usage to track your expenses!",
+      scheduledDate: scheduledDate,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'daily_reminder_channel',
           'Daily Reminders',
@@ -57,8 +57,6 @@ class NotificationService extends GetxService {
         iOS: DarwinNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
