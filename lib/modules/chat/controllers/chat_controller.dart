@@ -49,7 +49,7 @@ Always respond in the same language the user writes in (Indonesian or English).
 
   void _initGemini() {
     final model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       apiKey: AppConfig.geminiApiKey,
       systemInstruction: Content.system(_systemPrompt),
     );
@@ -87,7 +87,7 @@ Always respond in the same language the user writes in (Indonesian or English).
       messages.add(ChatMessage(
         text: isKeyError
             ? '⚠️ Invalid API key. Please update AppConfig.geminiApiKey with a valid key from https://aistudio.google.com/apikey'
-            : '⚠️ Network error. Please check your internet connection and try again.',
+            : '⚠️ Error: ${e.toString()}',
         isUser: false,
         timestamp: DateTime.now(),
       ));
