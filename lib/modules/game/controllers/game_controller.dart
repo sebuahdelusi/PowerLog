@@ -188,9 +188,15 @@ class GameController extends GetxController {
                       side: const BorderSide(color: Color(0xFF00E5FF)),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
+                      minimumSize: const Size(double.infinity, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
-                    child: const Text('Play Again',
-                        style: TextStyle(color: Color(0xFF00E5FF))),
+                    child: const Text(
+                      'Play Again',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Color(0xFF00E5FF)),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -203,6 +209,7 @@ class GameController extends GetxController {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00E5FF),
                       foregroundColor: Colors.black,
+                      minimumSize: const Size(double.infinity, 48),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),

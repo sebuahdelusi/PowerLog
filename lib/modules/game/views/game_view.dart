@@ -70,44 +70,59 @@ class _Instructions extends StatelessWidget {
 // ── Game board ────────────────────────────────────────────────────────────────
 
 class _GameBoard extends GetView<GameController> {
+  // side indicators: 40px each; gaps: 4+4=8px; outer padding: 32*2=64px
+  static const _indicatorW = 40.0;
+  static const _gap = 4.0;
+  static const _outerPadding = 32.0;
+  static const _tileGap = 6.0; // margin all:3 → 6px per tile
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       controller.version.value; // subscribe for rebuilds
       final powered = controller.poweredCells;
 
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Source indicator
-            _SourceIndicator(powered: powered.contains('1,0')),
-            const SizedBox(width: 4),
+      return LayoutBuilder(builder: (context, constraints) {
+        // Available width for the 3 tile columns
+        final availW = constraints.maxWidth
+            - _outerPadding * 2
+            - _indicatorW * 2
+            - _gap * 2;
+        // Each tile occupies tileSize + tileGap pixels
+        final tileSize = ((availW / 3) - _tileGap).clamp(40.0, 88.0);
 
-            // 3x3 grid
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(3, (r) => Row(
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: _outerPadding),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _SourceIndicator(powered: powered.contains('1,0'), tileSize: tileSize),
+              const SizedBox(width: _gap),
+
+              // 3×3 grid
+              Column(
                 mainAxisSize: MainAxisSize.min,
-                children: List.generate(3, (c) {
-                  final tile = controller.grid[r][c];
-                  final isPowered = powered.contains('$r,$c');
-                  return _TileCell(
-                    tile: tile,
-                    isPowered: isPowered,
-                    onTap: () => controller.rotateTile(r, c),
-                  );
-                }),
-              )),
-            ),
+                children: List.generate(3, (r) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (c) {
+                    final tile = controller.grid[r][c];
+                    final isPowered = powered.contains('$r,$c');
+                    return _TileCell(
+                      tile: tile,
+                      isPowered: isPowered,
+                      tileSize: tileSize,
+                      onTap: () => controller.rotateTile(r, c),
+                    );
+                  }),
+                )),
+              ),
 
-            const SizedBox(width: 4),
-            // Bulb indicator
-            _BulbIndicator(powered: controller.isWon.value),
-          ],
-        ),
-      );
+              const SizedBox(width: _gap),
+              _BulbIndicator(powered: controller.isWon.value, tileSize: tileSize),
+            ],
+          ),
+        );
+      });
     });
   }
 }
@@ -116,17 +131,19 @@ class _GameBoard extends GetView<GameController> {
 
 class _SourceIndicator extends StatelessWidget {
   final bool powered;
-  const _SourceIndicator({required this.powered});
+  final double tileSize;
+  const _SourceIndicator({required this.powered, required this.tileSize});
 
   @override
   Widget build(BuildContext context) {
+    final h = tileSize + 6; // match tile height including margin
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 72), // align with row 1
+        SizedBox(height: h), // align with row 1
         Container(
           width: 40,
-          height: 72,
+          height: h,
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: const BorderRadius.only(
@@ -134,9 +151,7 @@ class _SourceIndicator extends StatelessWidget {
               bottomLeft: Radius.circular(12),
             ),
             border: Border.all(
-              color: powered
-                  ? AppColors.primary
-                  : AppColors.surfaceLight,
+              color: powered ? AppColors.primary : AppColors.surfaceLight,
             ),
           ),
           child: Column(
@@ -156,7 +171,7 @@ class _SourceIndicator extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 72),
+        SizedBox(height: h),
       ],
     );
   }
@@ -166,18 +181,20 @@ class _SourceIndicator extends StatelessWidget {
 
 class _BulbIndicator extends StatelessWidget {
   final bool powered;
-  const _BulbIndicator({required this.powered});
+  final double tileSize;
+  const _BulbIndicator({required this.powered, required this.tileSize});
 
   @override
   Widget build(BuildContext context) {
+    final h = tileSize + 6;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 72),
+        SizedBox(height: h),
         AnimatedContainer(
           duration: const Duration(milliseconds: 400),
           width: 40,
-          height: 72,
+          height: h,
           decoration: BoxDecoration(
             color: powered
                 ? AppColors.secondary.withValues(alpha: 0.15)
@@ -214,7 +231,7 @@ class _BulbIndicator extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 72),
+        SizedBox(height: h),
       ],
     );
   }
@@ -225,11 +242,13 @@ class _BulbIndicator extends StatelessWidget {
 class _TileCell extends StatelessWidget {
   final WireTile tile;
   final bool isPowered;
+  final double tileSize;
   final VoidCallback onTap;
 
   const _TileCell({
     required this.tile,
     required this.isPowered,
+    required this.tileSize,
     required this.onTap,
   });
 
@@ -239,8 +258,8 @@ class _TileCell extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 72,
-        height: 72,
+        width: tileSize,
+        height: tileSize,
         margin: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           color: isPowered

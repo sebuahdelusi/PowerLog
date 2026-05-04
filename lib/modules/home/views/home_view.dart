@@ -36,9 +36,19 @@ class HomeView extends GetView<HomeController> {
       ),
       body: Column(
         children: [
-          _GyroHeader(),
-          _InputCard(),
-          const SizedBox(height: 4),
+          Flexible(
+            fit: FlexFit.loose,
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                children: [
+                  _GyroHeader(),
+                  _InputCard(),
+                  const SizedBox(height: 4),
+                ],
+              ),
+            ),
+          ),
           _SectionHeader(),
           Expanded(child: _LogList()),
         ],

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../app/theme/app_colors.dart';
 import '../controllers/nearest_pln_controller.dart';
 
@@ -84,54 +86,57 @@ class _SuccessState extends GetView<NearestPlnController> {
         children: [
           const SizedBox(height: 20),
 
-          // Map illustration card
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF003545), Color(0xFF001A2E)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Real map card
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              height: 220,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.4)),
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Grid lines decoration
-                CustomPaint(
-                  size: const Size(double.infinity, 200),
-                  painter: _GridPainter(),
-                ),
-                // Center icon
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.5),
-                            width: 2),
-                      ),
-                      child: const Icon(Icons.location_on,
-                          color: AppColors.primary, size: 36),
+              child: Obx(() {
+                final lat = controller.latitude.value;
+                final lng = controller.longitude.value;
+                final center = LatLng(lat, lng);
+                return FlutterMap(
+                  options: MapOptions(
+                    initialCenter: center,
+                    initialZoom: 15,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Location Acquired',
-                      style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.powerlog',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: center,
+                          width: 48,
+                          height: 48,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: AppColors.primary,
+                            size: 48,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black54,
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                );
+              }),
             ),
           ),
 
@@ -313,24 +318,4 @@ class _CoordRow extends StatelessWidget {
   }
 }
 
-// ── Grid painter for map effect ───────────────────────────────────────────────
 
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.07)
-      ..strokeWidth = 1;
-
-    const step = 30.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
