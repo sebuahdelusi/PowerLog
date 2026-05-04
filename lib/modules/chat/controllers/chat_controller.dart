@@ -14,7 +14,8 @@ class ChatController extends GetxController {
   final scrollCtrl = ScrollController();
 
   // ── Gemini ────────────────────────────────────────────────────────────────
-  late final ChatSession _chat;
+  ChatSession? _chat;
+  bool _apiKeyMissing = false;
 
   static const _systemPrompt = '''
 You are an AI-powered Energy Saving Consultant embedded in the PowerLog app.
@@ -48,9 +49,14 @@ Always respond in the same language the user writes in (Indonesian or English).
   // ── Init ──────────────────────────────────────────────────────────────────
 
   void _initGemini() {
+    final apiKey = AppConfig.geminiApiKey;
+    if (apiKey.isEmpty) {
+      _apiKeyMissing = true;
+      return;
+    }
     final model = GenerativeModel(
       model: 'gemini-2.5-flash',
-      apiKey: AppConfig.geminiApiKey,
+      apiKey: apiKey,
       systemInstruction: Content.system(_systemPrompt),
     );
     _chat = model.startChat();
@@ -71,6 +77,18 @@ Always respond in the same language the user writes in (Indonesian or English).
     final text = inputCtrl.text.trim();
     if (text.isEmpty || isTyping.value) return;
 
+    if (_apiKeyMissing || _chat == null) {
+      messages.add(ChatMessage(text: text, isUser: true, timestamp: DateTime.now()));
+      inputCtrl.clear();
+      messages.add(ChatMessage(
+        text: 'API key is missing. Provide GEMINI_API_KEY via --dart-define.',
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+      _scrollToBottom();
+      return;
+    }
+
     messages.add(ChatMessage(text: text, isUser: true, timestamp: DateTime.now()));
     inputCtrl.clear();
     isTyping.value = true;
@@ -80,7 +98,7 @@ Always respond in the same language the user writes in (Indonesian or English).
     try {
       while (retries >= 0) {
         try {
-          final response = await _chat.sendMessage(Content.text(text));
+          final response = await _chat!.sendMessage(Content.text(text));
           final reply = response.text ?? 'Sorry, I could not generate a response.';
           messages.add(ChatMessage(text: reply, isUser: false, timestamp: DateTime.now()));
           break; // Success

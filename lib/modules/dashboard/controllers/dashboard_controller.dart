@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:powerlog/data/repositories/auth_repository.dart';
+import '../../home/controllers/home_controller.dart';
 
 class DashboardController extends GetxController {
   final currentIndex = 0.obs;
@@ -10,7 +11,18 @@ class DashboardController extends GetxController {
       _handleLogout();
       return;
     }
+    _handleHomeSensors(index);
     currentIndex.value = index;
+  }
+
+  void _handleHomeSensors(int index) {
+    if (!Get.isRegistered<HomeController>()) return;
+    final home = Get.find<HomeController>();
+    if (index == 0) {
+      home.resumeSensors();
+    } else {
+      home.pauseSensors();
+    }
   }
 
   void _handleLogout() {
@@ -20,6 +32,9 @@ class DashboardController extends GetxController {
       textConfirm: 'Yes',
       textCancel: 'Cancel',
       onConfirm: () async {
+        if (Get.isRegistered<HomeController>()) {
+          Get.find<HomeController>().pauseSensors();
+        }
         await _repo.logout();
         Get.offAllNamed('/login');
       },

@@ -1,7 +1,11 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 void main() async {
-  final apiKey = 'AIzaSyDAdxRWnCaylSI54-1zGarbrI0grg9bIVE';
+  const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+  if (apiKey.isEmpty) {
+    print('Missing GEMINI_API_KEY. Run with --dart-define=GEMINI_API_KEY=...');
+    return;
+  }
   final model = GenerativeModel(
     model: 'gemini-2.5-flash',
     apiKey: apiKey,

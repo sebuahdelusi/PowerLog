@@ -75,7 +75,8 @@ class AnalyticsController extends GetxController {
       averageDailyKwh.value = totalKwh / span;
       // Predict 30 days
       final predicted30DayKwh = averageDailyKwh.value * 30;
-      predictedMonthlyCost.value = _repo.calculateCost(predicted30DayKwh);
+        predictedMonthlyCost.value =
+          _repo.calculateCost(predicted30DayKwh, forMonthly: true);
     } else {
       averageDailyKwh.value = 0;
       predictedMonthlyCost.value = 0;

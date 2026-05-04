@@ -53,6 +53,49 @@ class PdfService {
     await OpenFilex.open(file.path);
   }
 
+  Future<void> generateAndOpenMonthlyCsv(
+    String username,
+    List<LogModel> logs,
+    List<ApplianceModel> appliances,
+  ) async {
+    final buffer = StringBuffer();
+    buffer.writeln('PowerLog Report');
+    buffer.writeln('User,${_csvEscape(username)}');
+    buffer.writeln('Generated,${DateFormat('yyyy-MM-dd').format(DateTime.now())}');
+    buffer.writeln('');
+    buffer.writeln('Logs');
+    buffer.writeln('Date,Usage (kWh),Estimated Cost (IDR)');
+
+    for (final log in logs) {
+      buffer.writeln(
+        '${_csvEscape(log.date)},${log.kwhUsage.toStringAsFixed(2)},${log.estimatedCost.toStringAsFixed(0)}',
+      );
+    }
+
+    buffer.writeln('');
+    buffer.writeln('Appliances');
+    buffer.writeln('Appliance,Wattage (W),Hours/Day,Daily kWh');
+
+    for (final app in appliances) {
+      buffer.writeln(
+        '${_csvEscape(app.name)},${app.wattage.toStringAsFixed(0)},${app.hoursPerDay.toStringAsFixed(2)},${app.dailyKwh.toStringAsFixed(2)}',
+      );
+    }
+
+    final output = await getTemporaryDirectory();
+    final file = File('${output.path}/PowerLog_Report.csv');
+    await file.writeAsString(buffer.toString());
+    await OpenFilex.open(file.path);
+  }
+
+  String _csvEscape(String value) {
+    if (value.contains(',') || value.contains('"') || value.contains('\n')) {
+      final escaped = value.replaceAll('"', '""');
+      return '"$escaped"';
+    }
+    return value;
+  }
+
   pw.Widget _buildHeader(String username) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,

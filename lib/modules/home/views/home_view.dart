@@ -423,7 +423,7 @@ class _SectionHeader extends GetView<HomeController> {
                             fontWeight: FontWeight.bold)),
                   )),
               const Spacer(),
-              const Text('Swipe to delete',
+                const Text('Tap to edit • Swipe to delete',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
             ],
           ),
@@ -483,6 +483,7 @@ class _LogItem extends GetView<HomeController> {
     return Dismissible(
       key: ValueKey(log.id),
       direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _confirmDelete(context),
       background: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         alignment: Alignment.centerRight,
@@ -502,80 +503,170 @@ class _LogItem extends GetView<HomeController> {
         ),
       ),
       onDismissed: (_) => controller.deleteLog(log.id!),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: AppColors.cardGradient,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.surfaceLight),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+      child: GestureDetector(
+        onTap: () => _showEditDialog(context),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: AppColors.cardGradient,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.surfaceLight),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child:
+                    const Icon(Icons.bolt, color: AppColors.primary, size: 22),
               ),
-              child:
-                  const Icon(Icons.bolt, color: AppColors.primary, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_formatDate(log.date),
-                      style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.electrical_services,
-                        size: 13, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text('${log.kwhUsage.toStringAsFixed(2)} kWh',
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_formatDate(log.date),
                         style: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 12)),
-                  ]),
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      const Icon(Icons.electrical_services,
+                          size: 13, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Text('${log.kwhUsage.toStringAsFixed(2)} kWh',
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 12)),
+                    ]),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(_formatCurrency(log.estimatedCost),
+                        style: const TextStyle(
+                            color: AppColors.secondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 4),
+                  // Currency convert button
+                  GestureDetector(
+                    onTap: () => _showCurrencySheet(context),
+                    child: const Text(
+                      'convert ↔',
+                      style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(_formatCurrency(log.estimatedCost),
-                      style: const TextStyle(
-                          color: AppColors.secondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 4),
-                // Currency convert button
-                GestureDetector(
-                  onTap: () => _showCurrencySheet(context),
-                  child: const Text(
-                    'convert ↔',
-                    style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Log',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text(
+          'Are you sure you want to delete this log?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child:
+                const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _showEditDialog(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
+    final ctrl =
+        TextEditingController(text: log.kwhUsage.toStringAsFixed(2));
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Usage',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: const InputDecoration(
+              labelText: 'kWh Usage',
+              labelStyle: TextStyle(color: AppColors.textSecondary),
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Enter kWh usage';
+              final n = double.tryParse(v.trim());
+              if (n == null || n <= 0) return 'Enter a valid positive number';
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child:
+                const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              await controller.updateLog(log, ctrl.text);
+              if (context.mounted) {
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

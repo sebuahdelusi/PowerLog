@@ -2,12 +2,24 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'session_service.dart';
 
 class NotificationService extends GetxService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final _session = SessionService();
+  String _timezoneCode = 'WIB';
+
+  static const Map<String, String> _tzLocations = {
+    'WIB': 'Asia/Jakarta',
+    'WITA': 'Asia/Makassar',
+    'WIT': 'Asia/Jayapura',
+    'London': 'Europe/London',
+  };
 
   Future<NotificationService> init() async {
     tz.initializeTimeZones();
+    _timezoneCode = await _session.getTimezoneCode();
+    _applyTimezone(_timezoneCode);
 
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -27,15 +39,39 @@ class NotificationService extends GetxService {
     return this;
   }
 
-  Future<void> scheduleDailyReminder(bool enable) async {
+  void setTimezoneCode(String code) {
+    _timezoneCode = code;
+    _applyTimezone(code);
+  }
+
+  void _applyTimezone(String code) {
+    final locationName = _tzLocations[code] ?? 'Asia/Jakarta';
+    try {
+      tz.setLocalLocation(tz.getLocation(locationName));
+    } catch (_) {
+      // Keep default tz.local if lookup fails.
+    }
+  }
+
+  Future<void> scheduleDailyReminder({
+    required bool enable,
+    int hour = 20,
+    int minute = 0,
+  }) async {
     if (!enable) {
       await _plugin.cancel(id: 0);
       return;
     }
 
+    final granted = await _ensurePermissions();
+    if (!granted) {
+      throw Exception('Notification permission not granted.');
+    }
+
     // Schedule for 8:00 PM every day
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 20, 0);
+    var scheduledDate =
+      tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
     
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
@@ -59,5 +95,40 @@ class NotificationService extends GetxService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+  }
+
+  Future<bool> _ensurePermissions() async {
+    var granted = true;
+
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) {
+      final res = await android.requestNotificationsPermission();
+      granted = res ?? false;
+    }
+
+    final ios =
+        _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      final res = await ios.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      granted = granted && (res ?? false);
+    }
+
+    final mac =
+        _plugin.resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>();
+    if (mac != null) {
+      final res = await mac.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      granted = granted && (res ?? false);
+    }
+
+    return granted;
   }
 }

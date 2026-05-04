@@ -5,17 +5,17 @@ import 'package:torch_light/torch_light.dart';
 
 class SensorService {
   // ── Shake detection config ────────────────────────────────────────────────
-  static const double _shakeThreshold = 18.0; // m/s² — above gravity noise
-  static const Duration _shakeCooldown = Duration(seconds: 2);
+  static const double _shakeThreshold = 22.0; // m/s² — medium sensitivity
+  static const Duration _shakeCooldown = Duration(milliseconds: 2500);
 
   // ── State ─────────────────────────────────────────────────────────────────
   DateTime? _lastShake;
   bool _torchOn = false;
   bool _torchAvailable = false;
+  bool _active = false;
 
   // ── Subscriptions ─────────────────────────────────────────────────────────
   StreamSubscription<AccelerometerEvent>? _accelSub;
-  StreamSubscription<GyroscopeEvent>? _gyroSub;
 
   // ── Public streams ────────────────────────────────────────────────────────
   final _shakeController = StreamController<void>.broadcast();
@@ -28,19 +28,31 @@ class SensorService {
 
   Future<void> init() async {
     _torchAvailable = await _checkTorchAvailable();
-    _startAccelerometer();
+    resume();
   }
 
   void dispose() {
-    _accelSub?.cancel();
-    _gyroSub?.cancel();
+    pause();
     _shakeController.close();
+  }
+
+  void pause() {
+    _accelSub?.cancel();
+    _accelSub = null;
     if (_torchOn) _safeDisableTorch();
+    _active = false;
+  }
+
+  void resume() {
+    if (_active) return;
+    _startAccelerometer();
+    _active = true;
   }
 
   // ── Accelerometer / Shake ─────────────────────────────────────────────────
 
   void _startAccelerometer() {
+    if (_accelSub != null) return;
     _accelSub = accelerometerEventStream(
       samplingPeriod: SensorInterval.gameInterval,
     ).listen(_onAccelerometer);

@@ -24,8 +24,8 @@ class ApplianceModel {
     return ApplianceModel(
       id: map['id'] as int?,
       name: map['name'] as String,
-      wattage: map['wattage'] as double,
-      hoursPerDay: map['hours_per_day'] as double,
+      wattage: (map['wattage'] as num).toDouble(),
+      hoursPerDay: (map['hours_per_day'] as num).toDouble(),
     );
   }
 

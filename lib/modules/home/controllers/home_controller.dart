@@ -44,31 +44,35 @@ class HomeController extends GetxController {
   // ── Subscriptions ─────────────────────────────────────────────────────────
   StreamSubscription<void>? _shakeSub;
   StreamSubscription<GyroscopeEvent>? _gyroSub;
+  bool _sensorsReady = false;
 
   @override
   void onInit() {
     super.onInit();
     kwhCtrl.addListener(() => kwhInput.value = kwhCtrl.text);
-    _initSensors();
+    resumeSensors();
     loadLogs();
   }
 
   @override
   void onClose() {
     kwhCtrl.dispose();
-    _shakeSub?.cancel();
-    _gyroSub?.cancel();
+    pauseSensors();
     _sensors.dispose();
     super.onClose();
   }
 
   // ── Sensor init ───────────────────────────────────────────────────────────
 
-  Future<void> _initSensors() async {
-    await _sensors.init();
+  Future<void> resumeSensors() async {
+    if (!_sensorsReady) {
+      await _sensors.init();
+      _sensorsReady = true;
+    }
 
-    // Listen for shake events (sensor toggles torch internally)
-    _shakeSub = _sensors.onShake.listen((_) {
+    _sensors.resume();
+
+    _shakeSub ??= _sensors.onShake.listen((_) {
       isTorchOn.value = _sensors.isTorchOn;
       Get.snackbar(
         isTorchOn.value ? '🔦 Torch ON' : '🔦 Torch OFF',
@@ -79,11 +83,18 @@ class HomeController extends GetxController {
       );
     });
 
-    // Listen for gyroscope events for tilt UI effect
-    _gyroSub = _sensors.gyroscopeStream.listen((event) {
+    _gyroSub ??= _sensors.gyroscopeStream.listen((event) {
       gyroX.value = event.x.clamp(-5.0, 5.0);
       gyroY.value = event.y.clamp(-5.0, 5.0);
     });
+  }
+
+  void pauseSensors() {
+    _shakeSub?.cancel();
+    _shakeSub = null;
+    _gyroSub?.cancel();
+    _gyroSub = null;
+    _sensors.pause();
   }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -121,6 +132,29 @@ class HomeController extends GetxController {
   Future<void> deleteLog(int id) async {
     await _repo.deleteLog(id);
     await loadLogs();
+  }
+
+  Future<void> updateLog(LogModel log, String kwhInput) async {
+    if (log.id == null) return;
+    final error = await _repo.updateLog(log.id!, kwhInput);
+    if (error != null) {
+      Get.snackbar(
+        'Update Failed',
+        error,
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(16),
+      );
+      return;
+    }
+
+    await loadLogs();
+    Get.snackbar(
+      '✅ Log Updated',
+      'Usage updated successfully.',
+      snackPosition: SnackPosition.BOTTOM,
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 2),
+    );
   }
 
   double get previewCost {

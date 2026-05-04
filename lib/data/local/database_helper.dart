@@ -99,6 +99,16 @@ class DatabaseHelper {
     return UserModel.fromMap(maps.first);
   }
 
+  Future<int> updateUserPassword(String username, String newHash) async {
+    final db = await database;
+    return db.update(
+      tableUsers,
+      {'encrypted_password': newHash},
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+  }
+
   Future<bool> usernameExists(String username) async {
     final user = await getUserByUsername(username);
     return user != null;
@@ -116,6 +126,38 @@ class DatabaseHelper {
     final db = await database;
     final maps = await db.query(tableLogs, orderBy: 'date DESC');
     return maps.map(LogModel.fromMap).toList();
+  }
+
+  Future<LogModel?> getLogByDate(String date) async {
+    final db = await database;
+    final maps = await db.query(
+      tableLogs,
+      where: 'date = ?',
+      whereArgs: [date],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return LogModel.fromMap(maps.first);
+  }
+
+  Future<int> updateLogByDate(String date, double kwh, double cost) async {
+    final db = await database;
+    return db.update(
+      tableLogs,
+      {'kwh_usage': kwh, 'estimated_cost': cost},
+      where: 'date = ?',
+      whereArgs: [date],
+    );
+  }
+
+  Future<int> updateLogById(int id, double kwh, double cost) async {
+    final db = await database;
+    return db.update(
+      tableLogs,
+      {'kwh_usage': kwh, 'estimated_cost': cost},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<int> deleteLog(int id) async {

@@ -2,6 +2,30 @@
 
 A new Flutter project.
 
+## Gemini API key
+
+This app expects the Gemini API key via `--dart-define`:
+
+```bash
+flutter run --dart-define=GEMINI_API_KEY=your_key_here
+```
+
+## Features
+
+- Daily kWh logging with cost estimation
+- Analytics chart + monthly bill prediction
+- Appliance cost breakdown + donut chart
+- AI energy consultant (Gemini)
+- PLN tariff tiers with editable rates, tax, and fixed fee
+- PDF and CSV monthly export
+- Daily reminder notifications
+
+## Screenshots
+
+- Home: kWh logging + usage history
+- Analytics: prediction card + last 7 days chart
+- Profile: tariff settings + exports
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

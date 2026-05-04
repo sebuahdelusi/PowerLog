@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../dashboard/controllers/dashboard_controller.dart';
 import '../controllers/analytics_controller.dart';
 
 class AnalyticsView extends GetView<AnalyticsController> {
@@ -10,8 +11,6 @@ class AnalyticsView extends GetView<AnalyticsController> {
 
   @override
   Widget build(BuildContext context) {
-    Get.put(AnalyticsController());
-    
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -29,8 +28,42 @@ class AnalyticsView extends GetView<AnalyticsController> {
         }
 
         if (controller.dailyUsage.isEmpty) {
-          return const Center(
-            child: Text('No data to analyze yet.', style: TextStyle(color: AppColors.textSecondary)),
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.insights_outlined,
+                      size: 64,
+                      color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No data to analyze yet',
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Add your first log to see charts and predictions.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _goToHome,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.black,
+                    ),
+                    icon: const Icon(Icons.add_chart),
+                    label: const Text('Add Log'),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
@@ -117,6 +150,14 @@ class AnalyticsView extends GetView<AnalyticsController> {
         ],
       ),
     );
+  }
+
+  void _goToHome() {
+    if (Get.isRegistered<DashboardController>()) {
+      Get.find<DashboardController>().changePage(0);
+      return;
+    }
+    Get.offAllNamed('/dashboard');
   }
 
   Widget _buildChart() {

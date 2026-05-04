@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:collection';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -31,6 +33,12 @@ class GameController extends GetxController {
   final version = 0.obs;       // incremented on each tap to trigger Obx rebuild
   final isWon = false.obs;
   final poweredCells = <String>{}.obs; // 'r,c' keys
+  final moves = 0.obs;
+  final elapsedSeconds = 0.obs;
+  final hintsUsed = 0.obs;
+
+  final _rand = Random();
+  Timer? _timer;
 
   // ── Solution (correct rotations) ──────────────────────────────────────────
   // Path: source→(1,0)→(0,0)→(0,1)→(0,2)→(1,2)→bulb
@@ -44,24 +52,40 @@ class GameController extends GetxController {
     [3, 1, 0], // row 1: {W,N}, {N,S}, {N,E}
     [0, 0, 3], // row 2: {N,E}, {E,W}, {W,N}
   ];
-  // Initial scramble offsets — verified: (1,0) rot=0 → {N,E}, has no W → not solved at start
-  static const _scramble = [
-    [2, 1, 1],
-    [1, 1, 2],
-    [1, 2, 2],
-  ];
-
   @override
   void onInit() {
     super.onInit();
-    _buildGrid();
+    _startNewGame();
+  }
+
+  @override
+  void onClose() {
+    _timer?.cancel();
+    super.onClose();
   }
 
   void _buildGrid() {
     grid = List.generate(3, (r) => List.generate(3, (c) {
-      final rot = (_solutionRots[r][c] + _scramble[r][c]) % 4;
+      final rot = _rand.nextInt(4);
       return WireTile(_solutionTypes[r][c], rot);
     }));
+
+    // Ensure not solved at start by blocking the West connection on (1,0)
+    while (grid[1][0].connections.contains(3)) {
+      grid[1][0].rotate();
+    }
+  }
+
+  void _startNewGame() {
+    _buildGrid();
+    moves.value = 0;
+    hintsUsed.value = 0;
+    elapsedSeconds.value = 0;
+    isWon.value = false;
+    poweredCells.clear();
+    _startTimer();
+    _checkConnected(showSuccess: false);
+    version.value++;
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -69,22 +93,35 @@ class GameController extends GetxController {
   void rotateTile(int r, int c) {
     if (isWon.value) return;
     grid[r][c].rotate();
+    moves.value++;
     _checkConnected();
     version.value++;
   }
 
   void resetGame() {
-    _buildGrid();
-    isWon.value = false;
-    poweredCells.clear();
-    version.value++;
+    _startNewGame();
+  }
+
+  void useHint() {
+    if (isWon.value) return;
+    for (int r = 0; r < 3; r++) {
+      for (int c = 0; c < 3; c++) {
+        if (grid[r][c].rotation != _solutionRots[r][c]) {
+          grid[r][c].rotation = _solutionRots[r][c];
+          hintsUsed.value++;
+          _checkConnected();
+          version.value++;
+          return;
+        }
+      }
+    }
   }
 
   // ── BFS connectivity ──────────────────────────────────────────────────────
   // Source is at (row=1, left side) — enters (1,0) from West (dir=3).
   // Win: reach (1,2) and it has East (dir=1) connection.
 
-  void _checkConnected() {
+  void _checkConnected({bool showSuccess = true}) {
     final powered = <String>{};
     var won = false;
 
@@ -140,8 +177,22 @@ class GameController extends GetxController {
     final wasAlreadyWon = isWon.value;
     isWon.value = won;
     if (won && !wasAlreadyWon) {
-      Future.delayed(const Duration(milliseconds: 400), _showSuccess);
+      _timer?.cancel();
+      if (showSuccess) {
+        Future.delayed(const Duration(milliseconds: 400), _showSuccess);
+      }
+    } else if (!won && wasAlreadyWon) {
+      _startTimer();
     }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!isWon.value) {
+        elapsedSeconds.value++;
+      }
+    });
   }
 
   void _showSuccess() {

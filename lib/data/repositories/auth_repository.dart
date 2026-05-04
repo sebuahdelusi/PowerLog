@@ -16,6 +16,11 @@ class AuthRepository {
       final valid = PasswordHasher.verify(password, user.encryptedPassword);
       if (!valid) return 'Incorrect password.';
 
+      if (PasswordHasher.needsRehash(user.encryptedPassword)) {
+        final newHash = PasswordHasher.hash(password);
+        await _db.updateUserPassword(user.username, newHash);
+      }
+
       await _session.saveSession(username.trim());
       return null;
     } catch (e) {

@@ -4,10 +4,12 @@ import 'app/routes/app_pages.dart';
 import 'app/theme/app_theme.dart';
 
 import '../services/notification_service.dart';
+import '../services/tariff_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Get.putAsync(() => NotificationService().init());
+  await Get.putAsync(() => TariffService().init());
   runApp(const PowerLogApp());
 }
 

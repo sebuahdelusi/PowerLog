@@ -18,15 +18,21 @@ class GameView extends GetView<GameController> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.lightbulb_outline),
+            onPressed: controller.useHint,
+            tooltip: 'Hint',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_outlined),
             onPressed: controller.resetGame,
-            tooltip: 'Reset',
+            tooltip: 'Shuffle',
           ),
         ],
       ),
       body: Column(
         children: [
           _Instructions(),
+          _StatsRow(),
           const Spacer(),
           _GameBoard(),
           const Spacer(),
@@ -57,12 +63,71 @@ class _Instructions extends StatelessWidget {
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'Tap tiles to rotate them. Connect the ⚡ source (left) to the 💡 bulb (right).',
+              'Tap tiles to rotate them. Use hints if stuck. Shuffle to start a new puzzle.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Stats row ───────────────────────────────────────────────────────────────
+
+class _StatsRow extends GetView<GameController> {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final time = _formatTime(controller.elapsedSeconds.value);
+      return Container(
+        margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.surfaceLight),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _StatItem(label: 'Moves', value: '${controller.moves.value}'),
+            _StatItem(label: 'Time', value: time),
+            _StatItem(label: 'Hints', value: '${controller.hintsUsed.value}'),
+          ],
+        ),
+      );
+    });
+  }
+
+  String _formatTime(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    final mm = m.toString().padLeft(2, '0');
+    final ss = s.toString().padLeft(2, '0');
+    return '$mm:$ss';
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  const _StatItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(value,
+            style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+      ],
     );
   }
 }

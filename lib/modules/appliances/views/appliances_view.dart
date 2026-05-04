@@ -11,8 +11,6 @@ class AppliancesView extends GetView<AppliancesController> {
 
   @override
   Widget build(BuildContext context) {
-    Get.put(AppliancesController());
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -45,7 +43,8 @@ class AppliancesView extends GetView<AppliancesController> {
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       itemCount: controller.appliances.length,
-                      itemBuilder: (ctx, i) => _buildApplianceItem(controller.appliances[i]),
+                      itemBuilder: (ctx, i) =>
+                          _buildApplianceItem(ctx, controller.appliances[i]),
                     ),
             ),
           ],
@@ -146,12 +145,13 @@ class AppliancesView extends GetView<AppliancesController> {
     );
   }
 
-  Widget _buildApplianceItem(ApplianceModel appliance) {
+  Widget _buildApplianceItem(BuildContext context, ApplianceModel appliance) {
     final cost = controller.getMonthlyCost(appliance);
     
     return Dismissible(
       key: ValueKey(appliance.id),
       direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _confirmDelete(context),
       background: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.only(right: 20),
@@ -208,6 +208,38 @@ class AppliancesView extends GetView<AppliancesController> {
         ),
       ),
     );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Appliance',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text(
+          'Are you sure you want to delete this appliance?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child:
+                const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _showAddDialog(BuildContext context) {
