@@ -5,10 +5,11 @@ import '../models/log_model.dart';
 
 class DatabaseHelper {
   static const _dbName = 'powerlog.db';
-  static const _dbVersion = 2; // bumped: added logs table
+  static const _dbVersion = 3; // bumped: added appliances table
 
   static const tableUsers = 'users';
   static const tableLogs = 'logs';
+  static const tableAppliances = 'appliances';
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -34,11 +35,15 @@ class DatabaseHelper {
   Future<void> _onCreate(Database db, int version) async {
     await _createUsersTable(db);
     await _createLogsTable(db);
+    await _createAppliancesTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createLogsTable(db);
+    }
+    if (oldVersion < 3) {
+      await _createAppliancesTable(db);
     }
   }
 
@@ -59,6 +64,17 @@ class DatabaseHelper {
         date TEXT NOT NULL,
         kwh_usage REAL NOT NULL,
         estimated_cost REAL NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> _createAppliancesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $tableAppliances (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        wattage REAL NOT NULL,
+        hours_per_day REAL NOT NULL
       )
     ''');
   }
@@ -105,5 +121,23 @@ class DatabaseHelper {
   Future<int> deleteLog(int id) async {
     final db = await database;
     return db.delete(tableLogs, where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ── Appliances ───────────────────────────────────────────────────────────
+
+  Future<int> insertAppliance(Map<String, dynamic> applianceMap) async {
+    final db = await database;
+    return db.insert(tableAppliances, applianceMap,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllAppliances() async {
+    final db = await database;
+    return db.query(tableAppliances, orderBy: 'name ASC');
+  }
+
+  Future<int> deleteAppliance(int id) async {
+    final db = await database;
+    return db.delete(tableAppliances, where: 'id = ?', whereArgs: [id]);
   }
 }

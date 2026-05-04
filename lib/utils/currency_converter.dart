@@ -1,10 +1,10 @@
 /// Static exchange rates relative to IDR.
 /// Rates are approximate and fixed — replace with a live API call if needed.
 class CurrencyConverter {
-  // 1 IDR = x {currency}  (as of mid-2025 approximation)
-  static const double _toUSD = 0.000062;  // ~16,100 IDR/USD
-  static const double _toEUR = 0.000057;  // ~17,500 IDR/EUR
-  static const double _toGBP = 0.000049;  // ~20,400 IDR/GBP
+  // 1 IDR = x {currency} (Updated as of 2026)
+  static const double _toUSD = 0.0000617;  // ~16,200 IDR/USD
+  static const double _toEUR = 0.0000568;  // ~17,600 IDR/EUR
+  static const double _toGBP = 0.0000488;  // ~20,500 IDR/GBP
 
   static const currencies = ['USD', 'EUR', 'GBP'];
 

@@ -6,6 +6,9 @@ import 'package:powerlog/services/biometric_service.dart';
 import 'package:powerlog/services/session_service.dart';
 import 'package:powerlog/utils/timezone_converter.dart';
 import 'package:powerlog/services/notification_service.dart' as powerlog_notification;
+import 'package:powerlog/data/repositories/log_repository.dart' as powerlog_log_repo;
+import 'package:powerlog/data/repositories/appliance_repository.dart' as powerlog_app_repo;
+import 'package:powerlog/services/pdf_service.dart' as powerlog_pdf_service;
 
 class ProfileController extends GetxController {
   final _session = SessionService();
@@ -19,6 +22,7 @@ class ProfileController extends GetxController {
   final isBiometricSupported = false.obs;
   final isBiometricEnabled = false.obs;
   final isNotificationEnabled = false.obs;
+  final selectedTimezoneIndex = 0.obs;
 
   Timer? _clockTimer;
 
@@ -29,6 +33,7 @@ class ProfileController extends GetxController {
     _startClock();
     _checkBiometric();
     _loadNotificationSetting();
+    evaluateAchievements();
   }
 
   @override
@@ -98,4 +103,66 @@ class ProfileController extends GetxController {
   }
 
   List<TzInfo> get timezones => TimezoneConverter.zones;
+
+  // ── Phase 3: Achievements & Export ────────────────────────────────────────
+
+  final has7DayStreak = false.obs;
+  final isEcoSaver = false.obs;
+  final isExporting = false.obs;
+
+  Future<void> evaluateAchievements() async {
+    final logRepo = powerlog_log_repo.LogRepository();
+    final logs = await logRepo.fetchAllLogs();
+
+    if (logs.isEmpty) {
+      has7DayStreak.value = false;
+      isEcoSaver.value = false;
+      return;
+    }
+
+    // Check Eco Saver (last log < 5 kWh)
+    if (logs.first.kwhUsage < 5.0) {
+      isEcoSaver.value = true;
+    } else {
+      isEcoSaver.value = false;
+    }
+
+    // Check 7 Day Streak
+    if (logs.length >= 7) {
+      int consecutiveDays = 1;
+      for (int i = 0; i < logs.length - 1; i++) {
+        final d1 = DateTime.parse(logs[i].date);
+        final d2 = DateTime.parse(logs[i+1].date);
+        final diff = d1.difference(d2).inDays;
+        if (diff == 1) {
+          consecutiveDays++;
+        } else if (diff > 1) {
+          break; // streak broken
+        }
+      }
+      has7DayStreak.value = consecutiveDays >= 7;
+    }
+  }
+
+  Future<void> exportPdf() async {
+    isExporting.value = true;
+    try {
+      final logRepo = powerlog_log_repo.LogRepository();
+      final appRepo = powerlog_app_repo.ApplianceRepository();
+      final pdfService = powerlog_pdf_service.PdfService();
+
+      final logs = await logRepo.fetchAllLogs();
+      final appliances = await appRepo.fetchAllAppliances();
+
+      await pdfService.generateAndOpenMonthlyReport(
+        username.value,
+        logs,
+        appliances,
+      );
+    } catch (e) {
+      Get.snackbar('Export Failed', e.toString());
+    } finally {
+      isExporting.value = false;
+    }
+  }
 }

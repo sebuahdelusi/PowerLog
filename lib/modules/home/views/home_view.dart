@@ -617,55 +617,78 @@ class _LogItem extends GetView<HomeController> {
                   color: AppColors.textSecondary, fontSize: 12),
             ),
             const Divider(color: AppColors.surfaceLight, height: 24),
-            ...CurrencyConverter.currencies.map((code) {
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Convert to:', style: TextStyle(color: AppColors.textPrimary)),
+                Obx(() => DropdownButton<String>(
+                  value: controller.selectedCurrency.value,
+                  dropdownColor: AppColors.surfaceLight,
+                  underline: const SizedBox(),
+                  icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      controller.selectedCurrency.value = newValue;
+                    }
+                  },
+                  items: CurrencyConverter.currencies
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    );
+                  }).toList(),
+                )),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Obx(() {
+              final code = controller.selectedCurrency.value;
               final amount = converted[code]!;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        child: Text(
-                          CurrencyConverter.symbols[code]!,
-                          style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
-                        ),
+              return Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        CurrencyConverter.symbols[code]!,
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
-                    const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(code,
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11,
-                                letterSpacing: 1)),
-                        Text(
-                          CurrencyConverter.format(code, amount),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(code,
                           style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                              letterSpacing: 1)),
+                      Text(
+                        CurrencyConverter.format(code, amount),
+                        style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ],
               );
             }),
-            const SizedBox(height: 4),
+            const SizedBox(height: 24),
             Center(
               child: Text(
-                'Rates are approximate (mid-2025)',
+                'Rates are approximate (Updated 2026)',
                 style: TextStyle(
                     color: AppColors.textSecondary.withValues(alpha: 0.5),
                     fontSize: 10),

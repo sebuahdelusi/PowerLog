@@ -6,7 +6,7 @@ class DashboardController extends GetxController {
   final _repo = AuthRepository();
 
   void changePage(int index) {
-    if (index == 3) {
+    if (index == 5) {
       _handleLogout();
       return;
     }

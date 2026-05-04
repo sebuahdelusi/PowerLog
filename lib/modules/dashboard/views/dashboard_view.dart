@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../../../app/theme/app_colors.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../home/views/home_view.dart';
+import '../../analytics/views/analytics_view.dart';
+import '../../appliances/views/appliances_view.dart';
 import '../../profile/views/profile_view.dart';
 import '../../feedback/views/feedback_view.dart';
 
@@ -13,6 +15,8 @@ class DashboardView extends GetView<DashboardController> {
   Widget build(BuildContext context) {
     final pages = const [
       HomeView(),
+      AnalyticsView(),
+      AppliancesView(),
       ProfileView(),
       FeedbackView(),
     ];
@@ -43,6 +47,16 @@ class DashboardView extends GetView<DashboardController> {
               label: 'Home',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.analytics_outlined),
+              activeIcon: Icon(Icons.analytics),
+              label: 'Analytics',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.kitchen_outlined),
+              activeIcon: Icon(Icons.kitchen),
+              label: 'Appliances',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
               label: 'Profile',
@@ -58,6 +72,7 @@ class DashboardView extends GetView<DashboardController> {
               label: 'Logout',
             ),
           ],
+          type: BottomNavigationBarType.fixed,
         ),
       )),
     );

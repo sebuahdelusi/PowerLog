@@ -19,6 +19,8 @@ class ProfileView extends GetView<ProfileController> {
           children: [
             _ProfileCard(),
             const SizedBox(height: 20),
+            _AchievementsSection(),
+            const SizedBox(height: 20),
             _SettingsSection(),
             const SizedBox(height: 20),
             _TimezoneSection(),
@@ -73,6 +75,123 @@ class _ProfileCard extends GetView<ProfileController> {
             'PowerLog User',
             style:
                 TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          Obx(() => SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: controller.isExporting.value ? null : controller.exportPdf,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: controller.isExporting.value 
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                    : const Icon(Icons.picture_as_pdf, size: 18),
+                  label: Text(
+                    controller.isExporting.value ? 'Generating...' : 'Export Monthly Report',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Achievements section ──────────────────────────────────────────────────────
+
+class _AchievementsSection extends GetView<ProfileController> {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.emoji_events_outlined, color: AppColors.accent, size: 18),
+            const SizedBox(width: 8),
+            const Text(
+              'Eco-Achievements',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Obx(() => _buildBadge(
+                title: '7-Day Streak',
+                subtitle: 'Logged 7 days in a row',
+                icon: Icons.local_fire_department,
+                isUnlocked: controller.has7DayStreak.value,
+                color: Colors.orangeAccent,
+              )),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Obx(() => _buildBadge(
+                title: 'Eco Saver',
+                subtitle: 'Last log < 5 kWh',
+                icon: Icons.eco,
+                isUnlocked: controller.isEcoSaver.value,
+                color: Colors.greenAccent,
+              )),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBadge({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isUnlocked,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isUnlocked ? color.withValues(alpha: 0.1) : AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isUnlocked ? color.withValues(alpha: 0.4) : AppColors.surfaceLight,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: isUnlocked ? color : AppColors.textSecondary.withValues(alpha: 0.3),
+            size: 32,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              color: isUnlocked ? AppColors.textPrimary : AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary.withValues(alpha: isUnlocked ? 0.8 : 0.4),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -157,28 +276,51 @@ class _TimezoneSection extends GetView<ProfileController> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Icon(Icons.access_time, color: AppColors.primary, size: 18),
-            const SizedBox(width: 8),
-            const Text(
-              'World Clock',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.access_time, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                const Text(
+                  'World Clock',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
+            Obx(() => DropdownButton<int>(
+              value: controller.selectedTimezoneIndex.value,
+              dropdownColor: AppColors.surfaceLight,
+              underline: const SizedBox(),
+              icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+              onChanged: (int? newIndex) {
+                if (newIndex != null) {
+                  controller.selectedTimezoneIndex.value = newIndex;
+                }
+              },
+              items: List.generate(
+                controller.timezones.length,
+                (index) => DropdownMenuItem(
+                  value: index,
+                  child: Text(
+                    controller.timezones[index].code,
+                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            )),
           ],
         ),
         const SizedBox(height: 12),
         Obx(() {
           // Rebuild every tick
           controller.currentTime.value; // subscribe
-          return Column(
-            children: controller.timezones
-                .map((tz) => _TzCard(tz: tz))
-                .toList(),
-          );
+          final tz = controller.timezones[controller.selectedTimezoneIndex.value];
+          return _TzCard(tz: tz);
         }),
       ],
     );

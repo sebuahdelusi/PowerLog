@@ -17,6 +17,7 @@ class HomeController extends GetxController {
   final errorMessage = ''.obs;
   final kwhInput = ''.obs;
   final searchQuery = ''.obs;
+  final selectedCurrency = 'USD'.obs;
 
   List<LogModel> get filteredLogs {
     final query = searchQuery.value.toLowerCase().trim();
