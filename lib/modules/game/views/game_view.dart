@@ -17,11 +17,11 @@ class GameView extends GetView<GameController> {
           onPressed: () => Get.back(),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.lightbulb_outline),
-            onPressed: controller.useHint,
-            tooltip: 'Hint',
-          ),
+          Obx(() => IconButton(
+                icon: const Icon(Icons.lightbulb_outline),
+                onPressed: controller.canUseHint ? controller.useHint : null,
+                tooltip: controller.canUseHint ? 'Hint' : 'No hints left',
+              )),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
             onPressed: controller.resetGame,
@@ -32,6 +32,7 @@ class GameView extends GetView<GameController> {
       body: Column(
         children: [
           _Instructions(),
+          _DifficultyRow(),
           _StatsRow(),
           const Spacer(),
           _GameBoard(),
@@ -73,13 +74,107 @@ class _Instructions extends StatelessWidget {
   }
 }
 
+// ── Difficulty row ─────────────────────────────────────────────────────────
+
+class _DifficultyRow extends GetView<GameController> {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.surfaceLight),
+        ),
+        child: Row(
+          children: [
+            const Text('Difficulty',
+                style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(width: 10),
+            _DiffChip(
+              label: 'Easy',
+              selected: controller.difficulty.value == GameDifficulty.easy,
+              onTap: () => controller.setDifficulty(GameDifficulty.easy),
+            ),
+            const SizedBox(width: 6),
+            _DiffChip(
+              label: 'Medium',
+              selected: controller.difficulty.value == GameDifficulty.medium,
+              onTap: () => controller.setDifficulty(GameDifficulty.medium),
+            ),
+            const SizedBox(width: 6),
+            _DiffChip(
+              label: 'Hard',
+              selected: controller.difficulty.value == GameDifficulty.hard,
+              onTap: () => controller.setDifficulty(GameDifficulty.hard),
+            ),
+            const Spacer(),
+            Text(
+              'Lv ${controller.levelIndex.value + 1}/${controller.totalLevels}',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class _DiffChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _DiffChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.2)
+              : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.surfaceLight,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? AppColors.primary : AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Stats row ───────────────────────────────────────────────────────────────
 
 class _StatsRow extends GetView<GameController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final time = _formatTime(controller.elapsedSeconds.value);
+      final limit = controller.timeLimitSeconds;
+      final elapsed = controller.elapsedSeconds.value;
+      final remaining = (limit - elapsed).clamp(0, limit);
+      final time = limit > 0
+          ? '${_formatTime(remaining)} / ${_formatTime(limit)}'
+          : _formatTime(elapsed);
       return Container(
         margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -91,9 +186,16 @@ class _StatsRow extends GetView<GameController> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            _StatItem(
+              label: 'Level',
+              value: '${controller.levelIndex.value + 1}/${controller.totalLevels}',
+            ),
             _StatItem(label: 'Moves', value: '${controller.moves.value}'),
             _StatItem(label: 'Time', value: time),
-            _StatItem(label: 'Hints', value: '${controller.hintsUsed.value}'),
+            _StatItem(
+              label: 'Hints',
+              value: '${controller.hintsUsed.value}/${controller.hintLimit}',
+            ),
           ],
         ),
       );
