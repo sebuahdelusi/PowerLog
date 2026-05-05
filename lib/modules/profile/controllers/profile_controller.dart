@@ -379,6 +379,14 @@ class ProfileController extends GetxController {
         logs,
         appliances,
       );
+
+      final hasAppliances = appliances.isNotEmpty;
+      Get.snackbar(
+        'CSV Exported',
+        hasAppliances
+            ? 'Saved PowerLog_Logs.csv and PowerLog_Appliances.csv'
+            : 'Saved PowerLog_Logs.csv',
+      );
     } catch (e) {
       Get.snackbar('Export Failed', e.toString());
     } finally {

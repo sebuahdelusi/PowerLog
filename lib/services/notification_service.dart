@@ -9,6 +9,13 @@ class NotificationService extends GetxService {
   final _session = SessionService();
   String _timezoneCode = 'WIB';
 
+  static const AndroidNotificationChannel _dailyChannel = AndroidNotificationChannel(
+    'daily_reminder_channel',
+    'Daily Reminders',
+    description: 'Reminds you to log your usage',
+    importance: Importance.high,
+  );
+
   static const Map<String, String> _tzLocations = {
     'WIB': 'Asia/Jakarta',
     'WITA': 'Asia/Makassar',
@@ -36,6 +43,10 @@ class NotificationService extends GetxService {
     );
 
     await _plugin.initialize(settings: initSettings);
+
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await android?.createNotificationChannel(_dailyChannel);
     return this;
   }
 
@@ -77,6 +88,8 @@ class NotificationService extends GetxService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
+    final scheduleMode = await _resolveAndroidScheduleMode();
+
     await _plugin.zonedSchedule(
       id: 0,
       title: 'Log Your Electricity Usage ⚡',
@@ -92,9 +105,26 @@ class NotificationService extends GetxService {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+  }
+
+  Future<AndroidScheduleMode> _resolveAndroidScheduleMode() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return AndroidScheduleMode.inexactAllowWhileIdle;
+
+    try {
+      final exactAllowed = await android.requestExactAlarmsPermission();
+      if (exactAllowed == true) {
+        return AndroidScheduleMode.exactAllowWhileIdle;
+      }
+    } catch (_) {
+      // Ignore and fall back to inexact scheduling.
+    }
+
+    return AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
   Future<bool> _ensurePermissions() async {
@@ -105,10 +135,10 @@ class NotificationService extends GetxService {
     if (android != null) {
       final res = await android.requestNotificationsPermission();
       final enabled = await android.areNotificationsEnabled();
-      if (enabled != null) {
-        granted = enabled;
-      } else {
-        granted = res ?? true;
+      if (res == true || enabled == true) {
+        granted = true;
+      } else if (res == false && enabled == false) {
+        granted = false;
       }
     }
 
