@@ -37,10 +37,11 @@ class SplashView extends GetView<SplashController> {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.bolt,
-                  size: 54,
-                  color: AppColors.primary,
+                child: ClipOval(
+                  child: Image.asset(
+                    'logo.png',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ),
