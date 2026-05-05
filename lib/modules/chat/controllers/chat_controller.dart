@@ -107,6 +107,15 @@ Always respond in the same language the user writes in (Indonesian or English).
           final isHighDemand = errStr.contains('503') ||
               errStr.contains('high demand') ||
               errStr.contains('UNAVAILABLE');
+          final isRateLimit = errStr.contains('429') ||
+              errStr.contains('RESOURCE_EXHAUSTED') ||
+              errStr.contains('rate limit');
+          final isTimeout = errStr.contains('timed out') ||
+              errStr.contains('Timeout') ||
+              errStr.contains('deadline');
+          final isOffline = errStr.contains('SocketException') ||
+              errStr.contains('Failed host lookup') ||
+              errStr.contains('Network is unreachable');
 
           if (isHighDemand && retries > 0) {
             retries--;
@@ -116,16 +125,27 @@ Always respond in the same language the user writes in (Indonesian or English).
 
           final isKeyError = errStr.contains('API_KEY') ||
               errStr.contains('invalid') ||
-              errStr.contains('403');
+              errStr.contains('403') ||
+              errStr.contains('UNAUTHENTICATED') ||
+              errStr.contains('PERMISSION_DENIED');
+
+          final isSafety = errStr.contains('SAFETY') ||
+              errStr.contains('safety') ||
+              errStr.contains('blocked');
 
           String errorMsg;
           if (isKeyError) {
             errorMsg = '⚠️ Invalid API key. Please update AppConfig.';
           } else if (isHighDemand) {
             errorMsg = '⏳ The AI server is experiencing high demand. Please try again in a moment.';
+          } else if (isRateLimit) {
+            errorMsg = '⏳ Rate limit reached. Please wait a moment and try again.';
+          } else if (isTimeout || isOffline) {
+            errorMsg = '⚠️ Unable to reach the AI service. Check your internet connection.';
+          } else if (isSafety) {
+            errorMsg = '⚠️ The request was blocked by safety filters. Try rephrasing.';
           } else {
-            // Revert back to generic network error for other unhandled exceptions
-            errorMsg = '⚠️ Network error. Please check your internet connection and try again.';
+            errorMsg = '⚠️ Unexpected error: $errStr';
           }
 
           messages.add(ChatMessage(

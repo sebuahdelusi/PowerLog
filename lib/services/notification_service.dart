@@ -104,7 +104,12 @@ class NotificationService extends GetxService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
       final res = await android.requestNotificationsPermission();
-      granted = res ?? false;
+      final enabled = await android.areNotificationsEnabled();
+      if (enabled != null) {
+        granted = enabled;
+      } else {
+        granted = res ?? true;
+      }
     }
 
     final ios =
@@ -115,7 +120,7 @@ class NotificationService extends GetxService {
         badge: true,
         sound: true,
       );
-      granted = granted && (res ?? false);
+      granted = granted && (res ?? true);
     }
 
     final mac =
@@ -126,7 +131,7 @@ class NotificationService extends GetxService {
         badge: true,
         sound: true,
       );
-      granted = granted && (res ?? false);
+      granted = granted && (res ?? true);
     }
 
     return granted;

@@ -17,6 +17,8 @@ class BiometricService {
     try {
       return await _auth.authenticate(
         localizedReason: 'Authenticate to access PowerLog',
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
     } catch (_) {
       return false;
