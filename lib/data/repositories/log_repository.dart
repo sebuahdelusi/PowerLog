@@ -20,24 +20,24 @@ class LogRepository {
   }
 
   /// Returns null on success, error string on failure.
-  Future<String?> addLog(String kwhInput) async {
+  Future<String?> addLog(String kwhInput, {String? date}) async {
     try {
       final kwh = double.tryParse(kwhInput.trim());
       if (kwh == null || kwh <= 0) return 'Enter a valid kWh value.';
 
-      final date = DateTime.now().toIso8601String().substring(0, 10);
+      final logDate = date ?? DateTime.now().toIso8601String().substring(0, 10);
       final cost = calculateCost(kwh);
 
-      final existing = await _db.getLogByDate(date);
+      final existing = await _db.getLogByDate(logDate);
       if (existing == null) {
         final log = LogModel(
-          date: date,
+          date: logDate,
           kwhUsage: kwh,
           estimatedCost: cost,
         );
         await _db.insertLog(log);
       } else {
-        await _db.updateLogByDate(date, kwh, cost);
+        await _db.updateLogByDate(logDate, kwh, cost);
       }
       return null;
     } catch (e) {
@@ -54,13 +54,21 @@ class LogRepository {
     }
   }
 
-  Future<String?> updateLog(int id, String kwhInput) async {
+  Future<String?> updateLog(int id, String kwhInput, {String? date}) async {
     try {
       final kwh = double.tryParse(kwhInput.trim());
       if (kwh == null || kwh <= 0) return 'Enter a valid kWh value.';
 
       final cost = calculateCost(kwh);
-      await _db.updateLogById(id, kwh, cost);
+      final newDate = date ?? DateTime.now().toIso8601String().substring(0, 10);
+
+      final existing = await _db.getLogByDate(newDate);
+      if (existing != null && existing.id != id) {
+        await _db.updateLogById(existing.id!, kwh, cost);
+        await _db.deleteLog(id);
+      } else {
+        await _db.updateLogByIdWithDate(id, newDate, kwh, cost);
+      }
       return null;
     } catch (e) {
       return 'Failed to update log: $e';

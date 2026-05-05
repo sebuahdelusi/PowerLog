@@ -245,14 +245,21 @@ class _InputCard extends GetView<HomeController> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      DateFormat('EEEE, d MMM yyyy').format(DateTime.now()),
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
+                    Obx(() => Text(
+                          controller.selectedDateLabel,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        )),
                   ],
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => _pickDate(context),
+                  icon: const Icon(Icons.calendar_month,
+                      color: AppColors.primary),
+                  tooltip: 'Select date',
                 ),
               ],
             ),
@@ -388,6 +395,19 @@ class _InputCard extends GetView<HomeController> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final initial = controller.selectedDate.value;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      controller.setSelectedDate(picked);
+    }
   }
 }
 
@@ -620,53 +640,100 @@ class _LogItem extends GetView<HomeController> {
     final formKey = GlobalKey<FormState>();
     final ctrl =
         TextEditingController(text: log.kwhUsage.toStringAsFixed(2));
+    var editDate = DateTime.tryParse(log.date) ?? DateTime.now();
 
     await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Usage',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: ctrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(color: AppColors.textPrimary),
-            decoration: const InputDecoration(
-              labelText: 'kWh Usage',
-              labelStyle: TextStyle(color: AppColors.textSecondary),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Edit Usage',
+              style: TextStyle(color: AppColors.textPrimary)),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: ctrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'kWh Usage',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter kWh usage';
+                    final n = double.tryParse(v.trim());
+                    if (n == null || n <= 0) {
+                      return 'Enter a valid positive number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_month,
+                        color: AppColors.textSecondary, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        DateFormat('EEEE, d MMM yyyy').format(editDate),
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: editDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            editDate = picked;
+                          });
+                        }
+                      },
+                      child: const Text('Change'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Enter kWh usage';
-              final n = double.tryParse(v.trim());
-              if (n == null || n <= 0) return 'Enter a valid positive number';
-              return null;
-            },
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                final dateIso = DateFormat('yyyy-MM-dd').format(editDate);
+                await controller.updateLog(
+                  log,
+                  ctrl.text,
+                  dateIso: dateIso,
+                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child:
-                const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              await controller.updateLog(log, ctrl.text);
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }

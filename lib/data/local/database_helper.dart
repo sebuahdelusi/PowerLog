@@ -160,6 +160,21 @@ class DatabaseHelper {
     );
   }
 
+  Future<int> updateLogByIdWithDate(
+    int id,
+    String date,
+    double kwh,
+    double cost,
+  ) async {
+    final db = await database;
+    return db.update(
+      tableLogs,
+      {'date': date, 'kwh_usage': kwh, 'estimated_cost': cost},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<int> deleteLog(int id) async {
     final db = await database;
     return db.delete(tableLogs, where: 'id = ?', whereArgs: [id]);

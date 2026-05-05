@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:powerlog/data/models/log_model.dart';
 import 'package:powerlog/data/repositories/log_repository.dart';
@@ -18,6 +19,7 @@ class HomeController extends GetxController {
   final kwhInput = ''.obs;
   final searchQuery = ''.obs;
   final selectedCurrency = 'USD'.obs;
+  final selectedDate = DateTime.now().obs;
 
   List<LogModel> get filteredLogs {
     final query = searchQuery.value.toLowerCase().trim();
@@ -110,7 +112,10 @@ class HomeController extends GetxController {
     isSaving.value = true;
     errorMessage.value = '';
 
-    final error = await _repo.addLog(kwhCtrl.text);
+    final error = await _repo.addLog(
+      kwhCtrl.text,
+      date: selectedDateIso,
+    );
 
     if (error != null) {
       errorMessage.value = error;
@@ -134,9 +139,13 @@ class HomeController extends GetxController {
     await loadLogs();
   }
 
-  Future<void> updateLog(LogModel log, String kwhInput) async {
+  Future<void> updateLog(LogModel log, String kwhInput, {String? dateIso}) async {
     if (log.id == null) return;
-    final error = await _repo.updateLog(log.id!, kwhInput);
+    final error = await _repo.updateLog(
+      log.id!,
+      kwhInput,
+      date: dateIso ?? selectedDateIso,
+    );
     if (error != null) {
       Get.snackbar(
         'Update Failed',
@@ -160,6 +169,18 @@ class HomeController extends GetxController {
   double get previewCost {
     final kwh = double.tryParse(kwhInput.value.trim()) ?? 0;
     return _repo.calculateCost(kwh);
+  }
+
+  String get selectedDateLabel {
+    return DateFormat('EEEE, d MMM yyyy').format(selectedDate.value);
+  }
+
+  String get selectedDateIso {
+    return DateFormat('yyyy-MM-dd').format(selectedDate.value);
+  }
+
+  void setSelectedDate(DateTime date) {
+    selectedDate.value = date;
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
