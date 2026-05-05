@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../data/models/log_model.dart';
 import '../../../utils/currency_converter.dart';
 import '../controllers/home_controller.dart';
 
@@ -29,29 +28,20 @@ class HomeView extends GetView<HomeController> {
               )),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            onPressed: controller.loadLogs,
+            onPressed: controller.refreshEstimator,
             tooltip: 'Refresh',
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Flexible(
-            fit: FlexFit.loose,
-            child: SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              child: Column(
-                children: [
-                  _GyroHeader(),
-                  _InputCard(),
-                  const SizedBox(height: 4),
-                ],
-              ),
-            ),
-          ),
-          _SectionHeader(),
-          Expanded(child: _LogList()),
-        ],
+      body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Column(
+          children: [
+            _GyroHeader(),
+            _EstimatorCard(),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed('/chat'),
@@ -196,16 +186,16 @@ class _GyroHeader extends GetView<HomeController> {
   }
 }
 
-// ── Input card ────────────────────────────────────────────────────────────────
+// ── Token estimator ─────────────────────────────────────────────────────────
 
-class _InputCard extends GetView<HomeController> {
+class _EstimatorCard extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: AppColors.cardGradient,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
         boxShadow: [
@@ -216,189 +206,354 @@ class _InputCard extends GetView<HomeController> {
           ),
         ],
       ),
-      child: Form(
-        key: controller.formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.battery_charging_full,
+                    color: AppColors.secondary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Token Estimator',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: const Icon(Icons.flash_on,
-                      color: AppColors.primary, size: 20),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Log Usage',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Obx(() => Text(
-                          controller.selectedDateLabel,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        )),
-                  ],
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => _pickDate(context),
-                  icon: const Icon(Icons.calendar_month,
-                      color: AppColors.primary),
-                  tooltip: 'Select date',
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Obx(() {
+            final plans = controller.tariffPlans;
+            final current = controller.tariffPlanCode.value;
+            final value = plans.any((p) => p.code == current)
+                ? current
+                : plans.first.code;
 
-            // kWh input
-            TextFormField(
-              controller: controller.kwhCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+            return DropdownButtonFormField<String>(
+              key: ValueKey(value),
+              initialValue: value,
+              dropdownColor: AppColors.surfaceLight,
               style: const TextStyle(color: AppColors.textPrimary),
-              onChanged: (v) => controller.kwhInput.value = v,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Enter kWh usage';
-                final n = double.tryParse(v.trim());
-                if (n == null || n <= 0) return 'Enter a valid positive number';
-                return null;
+              onChanged: (String? code) {
+                if (code != null) {
+                  controller.setTariffPlan(code);
+                }
               },
               decoration: InputDecoration(
-                labelText: 'kWh Usage',
+                labelText: 'Tariff Plan',
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
-                hintText: 'e.g. 12.5',
-                hintStyle: TextStyle(
-                    color: AppColors.textSecondary.withValues(alpha: 0.5)),
-                suffixText: 'kWh',
-                suffixStyle: const TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.bold),
-                prefixIcon: const Icon(Icons.electrical_services_outlined,
-                    color: AppColors.textSecondary, size: 20),
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                      color: AppColors.textSecondary.withValues(alpha: 0.2)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: AppColors.primary, width: 1.5),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.error),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: AppColors.error, width: 1.5),
-                ),
               ),
+              items: plans
+                  .map((plan) => DropdownMenuItem<String>(
+                        value: plan.code,
+                        child: Text(plan.label,
+                            style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w500)),
+                      ))
+                  .toList(),
+            );
+          }),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.event,
+                  color: AppColors.textSecondary, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Obx(() => Text(
+                      'Token date: ${controller.tokenDateLabel}',
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12),
+                    )),
+              ),
+              TextButton(
+                onPressed: () => _pickTokenDate(context),
+                child: const Text('Change'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Obx(() {
+            final label = controller.meterCapacityLabel;
+            final note = controller.capacityCheckNote;
+
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: AppColors.textSecondary.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.speed,
+                          color: AppColors.textSecondary, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Meter capacity: $label',
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  if (note.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      note,
+                      style: TextStyle(
+                        color:
+                            AppColors.textSecondary.withValues(alpha: 0.7),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ]
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: controller.tokenCtrl,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              labelText: 'Token Amount (IDR)',
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
+              hintText: 'e.g. 50000',
+              hintStyle: TextStyle(
+                  color: AppColors.textSecondary.withValues(alpha: 0.5)),
+              prefixIcon: const Icon(Icons.payments_outlined,
+                  color: AppColors.textSecondary, size: 20),
+              filled: true,
+              fillColor: AppColors.surfaceLight,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
             ),
-
-            const SizedBox(height: 12),
-
-            // Live cost preview
-            Obx(() {
-              final kwh =
-                  double.tryParse(controller.kwhInput.value.trim()) ?? 0;
-              final cost = controller.previewCost;
-              if (kwh <= 0) return const SizedBox.shrink();
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => _showCurrencySheet(context, controller.tokenIdr),
+              child: const Text('Convert ↔'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Obx(() {
+            if (controller.isAppliancesLoading.value) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 6),
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            }
+            if (controller.appliances.isEmpty) {
               return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: AppColors.secondary.withValues(alpha: 0.3)),
+                      color: AppColors.textSecondary.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.attach_money,
-                        color: AppColors.secondary, size: 16),
+                    const Icon(Icons.kitchen_outlined,
+                        color: AppColors.textSecondary, size: 18),
                     const SizedBox(width: 8),
-                    Text(
-                      'Estimated cost: ${_formatCurrency(cost)}',
-                      style: const TextStyle(
-                          color: AppColors.secondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500),
+                    const Expanded(
+                      child: Text(
+                        'No appliances yet. Add your devices to estimate usage.',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12),
+                      ),
                     ),
+                    TextButton(
+                      onPressed: controller.goToAppliances,
+                      child: const Text('Add'),
+                    )
                   ],
                 ),
               );
-            }),
+            }
 
-            // Error
-            Obx(() => controller.errorMessage.value.isNotEmpty
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(controller.errorMessage.value,
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: AppColors.textSecondary.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.kitchen_outlined,
+                          color: AppColors.textSecondary, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Appliances: ${controller.appliances.length}',
                         style: const TextStyle(
-                            color: AppColors.error, fontSize: 12)),
-                  )
-                : const SizedBox.shrink()),
-
-            const SizedBox(height: 16),
-
-            // Save button
-            Obx(() => SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        controller.isSaving.value ? null : controller.addLog,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.black,
-                      disabledBackgroundColor:
-                          AppColors.primary.withValues(alpha: 0.4),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: controller.isSaving.value
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.black))
-                        : const Icon(Icons.save_outlined, size: 18),
-                    label: Text(
-                      controller.isSaving.value ? 'Saving…' : 'Save Log',
+                            color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: controller.goToAppliances,
+                        child: const Text('Manage'),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Total power: ${controller.totalWatt.toStringAsFixed(0)} W',
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Daily usage: ${controller.totalDailyKwh.toStringAsFixed(2)} kWh',
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 10),
+          Obx(() {
+            final label = controller.estimatedDurationLabel;
+            if (label.isEmpty) return const SizedBox.shrink();
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: AppColors.secondary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.timer_outlined,
+                      color: AppColors.secondary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Token lasts about $label',
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 15),
+                          color: AppColors.secondary, fontSize: 12),
                     ),
                   ),
-                )),
-          ],
-        ),
+                ],
+              ),
+            );
+          }),
+          Obx(() {
+            if (!controller.isOverCapacity) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        color: AppColors.error, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Total power exceeds your meter capacity. Consider upgrading your meter.',
+                        style: const TextStyle(
+                            color: AppColors.error, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 6),
+          Obx(() {
+            final cfg = controller.tariffConfig;
+            final rate = controller.effectiveRatePerKwh;
+            final taxNote = cfg.includeTax ? 'incl tax' : 'excl tax';
+            final feeNote = cfg.includeFixedFee && cfg.fixedFee > 0
+                ? ' + fixed fee ${_formatCurrency(cfg.fixedFee)}'
+                : '';
+
+            return Text(
+              'Rate used: ${_formatCurrency(rate)}/kWh ($taxNote)$feeNote',
+              style: TextStyle(
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                  fontSize: 11),
+            );
+          }),
+          const SizedBox(height: 16),
+          Obx(() => SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton.icon(
+                  onPressed: controller.isConfirming.value
+                      ? null
+                      : controller.confirmToken,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: controller.isConfirming.value
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.black),
+                        )
+                      : const Icon(Icons.check_circle_outline, size: 18),
+                  label: Text(
+                    controller.isConfirming.value
+                        ? 'Saving...'
+                        : 'Confirm Token',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              )),
+        ],
       ),
     );
   }
 
-  Future<void> _pickDate(BuildContext context) async {
-    final initial = controller.selectedDate.value;
+  Future<void> _pickTokenDate(BuildContext context) async {
+    final initial = controller.tokenDate.value;
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -406,404 +561,83 @@ class _InputCard extends GetView<HomeController> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) {
-      controller.setSelectedDate(picked);
+      controller.setTokenDate(picked);
     }
   }
-}
 
-// ── Section header & Search ──────────────────────────────────────────────────
+  void _showCurrencySheet(BuildContext context, double idrAmount) {
+    var selected = CurrencyConverter.currencies.first;
+    final converted = CurrencyConverter.fromIDR(idrAmount);
 
-class _SectionHeader extends GetView<HomeController> {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+    Get.bottomSheet(
+      StatefulBuilder(
+        builder: (context, setState) => Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Usage History',
-                  style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              Obx(() => Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text('${controller.filteredLogs.length}',
-                        style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold)),
-                  )),
-              const Spacer(),
-                const Text('Tap to edit • Swipe to delete',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Search Field
-          TextField(
-            onChanged: (v) => controller.searchQuery.value = v,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'Search by date or kWh...',
-              hintStyle: TextStyle(
-                  color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 13),
-              prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
-              filled: true,
-              fillColor: AppColors.surfaceLight,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Log list ──────────────────────────────────────────────────────────────────
-
-class _LogList extends GetView<HomeController> {
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      if (controller.isLoading.value) {
-        return const Center(
-            child: CircularProgressIndicator(color: AppColors.primary));
-      }
-      final list = controller.filteredLogs;
-      if (list.isEmpty) return _EmptyState();
-      return ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        itemCount: list.length,
-        itemBuilder: (ctx, i) => _LogItem(log: list[i]),
-      );
-    });
-  }
-}
-
-// ── Single log item with swipe-to-delete ─────────────────────────────────────
-
-class _LogItem extends GetView<HomeController> {
-  final LogModel log;
-  const _LogItem({required this.log});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey(log.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _confirmDelete(context),
-      background: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.delete_outline, color: Colors.white, size: 24),
-            SizedBox(height: 4),
-            Text('Delete',
-                style: TextStyle(color: Colors.white, fontSize: 11)),
-          ],
-        ),
-      ),
-      onDismissed: (_) => controller.deleteLog(log.id!),
-      child: GestureDetector(
-        onTap: () => _showEditDialog(context),
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: AppColors.cardGradient,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.surfaceLight),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child:
-                    const Icon(Icons.bolt, color: AppColors.primary, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_formatDate(log.date),
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      const Icon(Icons.electrical_services,
-                          size: 13, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text('${log.kwhUsage.toStringAsFixed(2)} kWh',
-                          style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12)),
-                    ]),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(_formatCurrency(log.estimatedCost),
-                        style: const TextStyle(
-                            color: AppColors.secondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 4),
-                  // Currency convert button
-                  GestureDetector(
-                    onTap: () => _showCurrencySheet(context),
-                    child: const Text(
-                      'convert ↔',
+                  const Icon(Icons.currency_exchange, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  const Text('Token Conversion',
                       style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500),
-                    ),
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Get.back(),
+                    child: const Icon(Icons.close,
+                        color: AppColors.textSecondary, size: 20),
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<bool> _confirmDelete(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Log',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text(
-          'Are you sure you want to delete this log?',
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child:
-                const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
-  Future<void> _showEditDialog(BuildContext context) async {
-    final formKey = GlobalKey<FormState>();
-    final ctrl =
-        TextEditingController(text: log.kwhUsage.toStringAsFixed(2));
-    var editDate = DateTime.tryParse(log.date) ?? DateTime.now();
-
-    await showDialog<void>(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Edit Usage',
-              style: TextStyle(color: AppColors.textPrimary)),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: ctrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'kWh Usage',
-                    labelStyle: TextStyle(color: AppColors.textSecondary),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Enter kWh usage';
-                    final n = double.tryParse(v.trim());
-                    if (n == null || n <= 0) {
-                      return 'Enter a valid positive number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_month,
-                        color: AppColors.textSecondary, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        DateFormat('EEEE, d MMM yyyy').format(editDate),
-                        style: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 12),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: editDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            editDate = picked;
-                          });
-                        }
-                      },
-                      child: const Text('Change'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                final dateIso = DateFormat('yyyy-MM-dd').format(editDate);
-                await controller.updateLog(
-                  log,
-                  ctrl.text,
-                  dateIso: dateIso,
-                );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.black,
+              const SizedBox(height: 6),
+              Text(
+                'Base: ${_formatCurrency(idrAmount)} IDR',
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 12),
               ),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showCurrencySheet(BuildContext context) {
-    final converted = CurrencyConverter.fromIDR(log.estimatedCost);
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.currency_exchange, color: AppColors.primary),
-                const SizedBox(width: 10),
-                const Text('Currency Conversion',
-                    style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold)),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => Get.back(),
-                  child: const Icon(Icons.close,
-                      color: AppColors.textSecondary, size: 20),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Base: ${_formatCurrency(log.estimatedCost)} IDR',
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 12),
-            ),
-            const Divider(color: AppColors.surfaceLight, height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Convert to:', style: TextStyle(color: AppColors.textPrimary)),
-                Obx(() => DropdownButton<String>(
-                  value: controller.selectedCurrency.value,
-                  dropdownColor: AppColors.surfaceLight,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      controller.selectedCurrency.value = newValue;
-                    }
-                  },
-                  items: CurrencyConverter.currencies
-                      .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                    );
-                  }).toList(),
-                )),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Obx(() {
-              final code = controller.selectedCurrency.value;
-              final amount = converted[code]!;
-              return Row(
+              const Divider(color: AppColors.surfaceLight, height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Convert to:',
+                      style: TextStyle(color: AppColors.textPrimary)),
+                  DropdownButton<String>(
+                    value: selected,
+                    dropdownColor: AppColors.surfaceLight,
+                    underline: const SizedBox(),
+                    icon: const Icon(Icons.arrow_drop_down,
+                        color: AppColors.primary),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          selected = newValue;
+                        });
+                      }
+                    },
+                    items: CurrencyConverter.currencies
+                        .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value,
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold)),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
                 children: [
                   Container(
                     width: 40,
@@ -814,7 +648,7 @@ class _LogItem extends GetView<HomeController> {
                     ),
                     child: Center(
                       child: Text(
-                        CurrencyConverter.symbols[code]!,
+                        CurrencyConverter.symbols[selected]!,
                         style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 18,
@@ -826,13 +660,14 @@ class _LogItem extends GetView<HomeController> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(code,
+                      Text(selected,
                           style: const TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 11,
                               letterSpacing: 1)),
                       Text(
-                        CurrencyConverter.format(code, amount),
+                        CurrencyConverter.format(
+                            selected, converted[selected] ?? 0),
                         style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 20,
@@ -841,54 +676,10 @@ class _LogItem extends GetView<HomeController> {
                     ],
                   ),
                 ],
-              );
-            }),
-            const SizedBox(height: 24),
-            Center(
-              child: Text(
-                'Rates are approximate (Updated 2026)',
-                style: TextStyle(
-                    color: AppColors.textSecondary.withValues(alpha: 0.5),
-                    fontSize: 10),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  String _formatDate(String iso) {
-    try {
-      return DateFormat('EEE, d MMM yyyy').format(DateTime.parse(iso));
-    } catch (_) {
-      return iso;
-    }
-  }
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_outlined,
-              size: 64,
-              color: AppColors.textSecondary.withValues(alpha: 0.4)),
-          const SizedBox(height: 16),
-          const Text('No logs yet',
-              style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500)),
-          const SizedBox(height: 8),
-          const Text('Add your first electricity usage above',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-        ],
       ),
     );
   }

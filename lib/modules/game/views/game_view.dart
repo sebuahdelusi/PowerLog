@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../app/theme/app_colors.dart';
@@ -34,11 +35,12 @@ class GameView extends GetView<GameController> {
           _Instructions(),
           _DifficultyRow(),
           _StatsRow(),
-          const Spacer(),
-          _GameBoard(),
-          const Spacer(),
+          _CompassRow(),
+          const SizedBox(height: 8),
+          Expanded(child: _GameBoard()),
+          const SizedBox(height: 8),
           _LegendRow(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -64,7 +66,7 @@ class _Instructions extends StatelessWidget {
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'Tap tiles to rotate them. Use hints if stuck. Shuffle to start a new puzzle.',
+              'Align your phone to the target compass, then tap tiles to rotate them. Use hints if stuck. Shuffle to start a new puzzle.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
             ),
           ),
@@ -211,6 +213,87 @@ class _StatsRow extends GetView<GameController> {
   }
 }
 
+// ── Compass row ─────────────────────────────────────────────────────────────
+
+class _CompassRow extends GetView<GameController> {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final heading = controller.compassHeading.value;
+      final target = controller.targetHeading.value;
+      final aligned = controller.isCompassAligned;
+      final available = controller.isCompassAvailable.value;
+      final statusText = available
+          ? (aligned ? 'Aligned' : 'Align to target')
+          : 'Compass unavailable';
+      final statusColor = aligned ? AppColors.secondary : AppColors.accent;
+
+      return Container(
+        margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.surfaceLight),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Transform.rotate(
+                angle: (heading * math.pi) / 180,
+                child: Icon(Icons.navigation,
+                    color: available ? AppColors.primary : AppColors.textSecondary,
+                    size: 20),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Compass Challenge',
+                      style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    available
+                        ? 'Target ${target.toStringAsFixed(0)}° • Current ${heading.toStringAsFixed(0)}°'
+                        : 'Your device does not support compass',
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                statusText,
+                style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
@@ -250,28 +333,37 @@ class _GameBoard extends GetView<GameController> {
       final powered = controller.poweredCells;
 
       return LayoutBuilder(builder: (context, constraints) {
-        // Available width for the 3 tile columns
+        final size = controller.gridSize;
+        // Available width for the tile columns
         final availW = constraints.maxWidth
             - _outerPadding * 2
             - _indicatorW * 2
             - _gap * 2;
+        final availH = constraints.maxHeight;
         // Each tile occupies tileSize + tileGap pixels
-        final tileSize = ((availW / 3) - _tileGap).clamp(40.0, 88.0);
+        final byW = (availW / size) - _tileGap;
+        final byH = (availH / size) - _tileGap;
+        final tileSize = math.min(byW, byH).clamp(24.0, 88.0);
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: _outerPadding),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _SourceIndicator(powered: powered.contains('1,0'), tileSize: tileSize),
+              _SourceIndicator(
+                powered: powered.contains('${controller.sourceRow},${controller.sourceCol}'),
+                tileSize: tileSize,
+                rowIndex: controller.sourceRow,
+                totalRows: size,
+              ),
               const SizedBox(width: _gap),
 
-              // 3×3 grid
+              // Grid
               Column(
                 mainAxisSize: MainAxisSize.min,
-                children: List.generate(3, (r) => Row(
+                children: List.generate(size, (r) => Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: List.generate(3, (c) {
+                  children: List.generate(size, (c) {
                     final tile = controller.grid[r][c];
                     final isPowered = powered.contains('$r,$c');
                     return _TileCell(
@@ -285,7 +377,12 @@ class _GameBoard extends GetView<GameController> {
               ),
 
               const SizedBox(width: _gap),
-              _BulbIndicator(powered: controller.isWon.value, tileSize: tileSize),
+              _BulbIndicator(
+                powered: controller.isWon.value,
+                tileSize: tileSize,
+                rowIndex: controller.targetRow,
+                totalRows: size,
+              ),
             ],
           ),
         );
@@ -299,7 +396,14 @@ class _GameBoard extends GetView<GameController> {
 class _SourceIndicator extends StatelessWidget {
   final bool powered;
   final double tileSize;
-  const _SourceIndicator({required this.powered, required this.tileSize});
+  final int rowIndex;
+  final int totalRows;
+  const _SourceIndicator({
+    required this.powered,
+    required this.tileSize,
+    required this.rowIndex,
+    required this.totalRows,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +411,7 @@ class _SourceIndicator extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(height: h), // align with row 1
+        SizedBox(height: h * rowIndex),
         Container(
           width: 40,
           height: h,
@@ -338,7 +442,7 @@ class _SourceIndicator extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: h),
+        SizedBox(height: h * (totalRows - rowIndex - 1)),
       ],
     );
   }
@@ -349,7 +453,14 @@ class _SourceIndicator extends StatelessWidget {
 class _BulbIndicator extends StatelessWidget {
   final bool powered;
   final double tileSize;
-  const _BulbIndicator({required this.powered, required this.tileSize});
+  final int rowIndex;
+  final int totalRows;
+  const _BulbIndicator({
+    required this.powered,
+    required this.tileSize,
+    required this.rowIndex,
+    required this.totalRows,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +468,7 @@ class _BulbIndicator extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(height: h),
+        SizedBox(height: h * rowIndex),
         AnimatedContainer(
           duration: const Duration(milliseconds: 400),
           width: 40,
@@ -398,7 +509,7 @@ class _BulbIndicator extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: h),
+        SizedBox(height: h * (totalRows - rowIndex - 1)),
       ],
     );
   }

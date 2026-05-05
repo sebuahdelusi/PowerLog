@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:powerlog/data/repositories/auth_repository.dart';
 import 'package:powerlog/services/biometric_service.dart';
 import 'package:powerlog/services/session_service.dart';
@@ -28,7 +30,11 @@ class ProfileController extends GetxController {
   final isBiometricEnabled = false.obs;
   final isNotificationEnabled = false.obs;
   final reminderTime = const TimeOfDay(hour: 20, minute: 0).obs;
+  final isCustomReminderEnabled = false.obs;
+  final customReminderDateTime = DateTime.now().obs;
   final selectedTimezoneIndex = 0.obs;
+  final compassHeading = 0.0.obs;
+  final isCompassAvailable = false.obs;
 
   // Tariff settings
   final tariffPlanCode = ''.obs;
@@ -39,12 +45,14 @@ class ProfileController extends GetxController {
   final includeFixedFee = false.obs;
 
   Timer? _clockTimer;
+  StreamSubscription<MagnetometerEvent>? _magSub;
 
   @override
   void onInit() {
     super.onInit();
     _loadUsername();
     _startClock();
+    _startCompass();
     _checkBiometric();
     _initSettings();
     _loadTariffSettings();
@@ -54,6 +62,8 @@ class ProfileController extends GetxController {
   @override
   void onClose() {
     _clockTimer?.cancel();
+    _magSub?.cancel();
+    _magSub = null;
     super.onClose();
   }
 
@@ -62,6 +72,7 @@ class ProfileController extends GetxController {
   Future<void> _initSettings() async {
     await _loadNotificationSetting();
     await _loadReminderTime();
+    await _loadCustomReminder();
     await _loadTimezone();
     await _syncNotificationSchedule();
   }
@@ -86,6 +97,12 @@ class ProfileController extends GetxController {
     reminderTime.value = TimeOfDay(hour: hour, minute: minute);
   }
 
+  Future<void> _loadCustomReminder() async {
+    isCustomReminderEnabled.value = await _session.isCustomReminderEnabled();
+    final stored = await _session.getCustomReminderDateTime();
+    customReminderDateTime.value = stored ?? _defaultCustomDateTime();
+  }
+
   Future<void> _loadTimezone() async {
     final code = await _session.getTimezoneCode();
     final index = timezones.indexWhere((tz) => tz.code == code);
@@ -94,13 +111,52 @@ class ProfileController extends GetxController {
   }
 
   Future<void> _syncNotificationSchedule() async {
-    if (!isNotificationEnabled.value) return;
+    await _syncAutoReminder();
+    await _syncCustomReminder();
+  }
+
+  Future<void> _syncAutoReminder() async {
     try {
-      final notifService = Get.find<powerlog_notification.NotificationService>();
+      final notifService =
+          Get.find<powerlog_notification.NotificationService>();
+
+      if (!isNotificationEnabled.value) {
+        await notifService.scheduleTokenReminder(enable: false);
+        await notifService.scheduleDailyReminder(enable: false);
+        return;
+      }
+
+      if (Get.isRegistered<AnalyticsController>()) {
+        final analytics = Get.find<AnalyticsController>();
+        final estimate = analytics.estimatedEndDateTime;
+        if (estimate != null) {
+          // Use token-based estimation reminder
+          await notifService.scheduleTokenReminder(
+            enable: true,
+            scheduledAt: estimate,
+          );
+          // Cancel daily reminder if we have token-based
+          await notifService.scheduleDailyReminder(enable: false);
+          return;
+        }
+      }
+
+      // Fallback to daily if no estimation or analytics not available
       await notifService.scheduleDailyReminder(
         enable: true,
         hour: reminderTime.value.hour,
         minute: reminderTime.value.minute,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _syncCustomReminder() async {
+    if (!isCustomReminderEnabled.value) return;
+    try {
+      final notifService = Get.find<powerlog_notification.NotificationService>();
+      await notifService.scheduleCustomReminder(
+        enable: true,
+        scheduledAt: customReminderDateTime.value,
       );
     } catch (_) {}
   }
@@ -135,17 +191,30 @@ class ProfileController extends GetxController {
     isNotificationEnabled.value = val;
 
     try {
-      final notifService = Get.find<powerlog_notification.NotificationService>();
-      await notifService.scheduleDailyReminder(
-        enable: val,
-        hour: reminderTime.value.hour,
-        minute: reminderTime.value.minute,
-      );
+      await _syncAutoReminder();
       await _repo.setNotificationEnabled(val);
     } catch (e) {
       isNotificationEnabled.value = previous;
       await _repo.setNotificationEnabled(previous);
       Get.snackbar('Notification Error', 'Failed to update reminder schedule.');
+    }
+  }
+
+  Future<void> toggleCustomReminder(bool val) async {
+    final previous = isCustomReminderEnabled.value;
+    isCustomReminderEnabled.value = val;
+    await _session.setCustomReminderEnabled(val);
+
+    try {
+      final notifService = Get.find<powerlog_notification.NotificationService>();
+      await notifService.scheduleCustomReminder(
+        enable: val,
+        scheduledAt: customReminderDateTime.value,
+      );
+    } catch (e) {
+      isCustomReminderEnabled.value = previous;
+      await _session.setCustomReminderEnabled(previous);
+      Get.snackbar('Notification Error', 'Failed to update custom reminder.');
     }
   }
 
@@ -169,10 +238,49 @@ class ProfileController extends GetxController {
     }
   }
 
+  Future<void> setCustomReminderDateTime(DateTime dateTime) async {
+    final previous = customReminderDateTime.value;
+    customReminderDateTime.value = dateTime;
+    await _session.setCustomReminderDateTime(dateTime);
+
+    if (!isCustomReminderEnabled.value) return;
+    try {
+      final notifService = Get.find<powerlog_notification.NotificationService>();
+      await notifService.scheduleCustomReminder(
+        enable: true,
+        scheduledAt: dateTime,
+      );
+    } catch (e) {
+      customReminderDateTime.value = previous;
+      await _session.setCustomReminderDateTime(previous);
+      Get.snackbar('Notification Error', 'Failed to reschedule custom reminder.');
+    }
+  }
+
   void _startClock() {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       currentTime.value = DateTime.now();
     });
+  }
+
+  void _startCompass() {
+    if (_magSub != null) return;
+    _magSub = magnetometerEventStream(
+      samplingPeriod: SensorInterval.gameInterval,
+    ).listen(
+      _onMagnetometer,
+      onError: (_) {
+        isCompassAvailable.value = false;
+      },
+    );
+  }
+
+  void _onMagnetometer(MagnetometerEvent event) {
+    final heading = atan2(event.y, event.x) * (180 / pi);
+    var deg = heading;
+    if (deg < 0) deg += 360;
+    compassHeading.value = deg;
+    isCompassAvailable.value = true;
   }
 
   /// Returns formatted time for a given timezone info.
@@ -184,6 +292,21 @@ class ProfileController extends GetxController {
   String dateFor(TzInfo tz) {
     final converted = TimezoneConverter.toZone(tz, currentTime.value);
     return DateFormat('EEE, d MMM').format(converted);
+  }
+
+  String get customReminderLabel {
+    return DateFormat('EEE, d MMM yyyy • HH:mm')
+        .format(customReminderDateTime.value);
+  }
+
+  String get autoReminderSubtitle {
+    if (!Get.isRegistered<AnalyticsController>()) {
+      return 'Daily at ${reminderTime.value.hour.toString().padLeft(2, '0')}:${reminderTime.value.minute.toString().padLeft(2, '0')} (auto)';
+    }
+    final analytics = Get.find<AnalyticsController>();
+    final label = analytics.estimatedEndDateLabel;
+    if (label == '-') return 'Estimation unavailable (auto)';
+    return 'Remind at $label (auto)';
   }
 
   List<TzInfo> get timezones => TimezoneConverter.zones;
@@ -206,6 +329,16 @@ class ProfileController extends GetxController {
         );
       } catch (_) {}
     }
+
+    if (isCustomReminderEnabled.value) {
+      try {
+        final notifService = Get.find<powerlog_notification.NotificationService>();
+        await notifService.scheduleCustomReminder(
+          enable: true,
+          scheduledAt: customReminderDateTime.value,
+        );
+      } catch (_) {}
+    }
   }
 
   void _applyTimezoneSelection() {
@@ -214,6 +347,15 @@ class ProfileController extends GetxController {
       final code = timezones[selectedTimezoneIndex.value].code;
       notifService.setTimezoneCode(code);
     } catch (_) {}
+  }
+
+  DateTime _defaultCustomDateTime() {
+    final now = DateTime.now();
+    var dt = DateTime(now.year, now.month, now.day, 20, 0);
+    if (dt.isBefore(now)) {
+      dt = dt.add(const Duration(days: 1));
+    }
+    return dt;
   }
 
   Future<void> setTariffPlan(String code) async {
@@ -276,11 +418,12 @@ class ProfileController extends GetxController {
 
   Future<void> _refreshDashboardData() async {
     if (Get.isRegistered<HomeController>()) {
-      await Get.find<HomeController>().loadLogs();
+      await Get.find<HomeController>().refreshEstimator();
     }
     if (Get.isRegistered<AnalyticsController>()) {
       await Get.find<AnalyticsController>().loadData();
     }
+    await _syncAutoReminder();
   }
 
   // ── Phase 3: Achievements & Export ────────────────────────────────────────
@@ -356,6 +499,7 @@ class ProfileController extends GetxController {
         username.value,
         logs,
         appliances,
+        ratePerKwh.value,
       );
     } catch (e) {
       Get.snackbar('Export Failed', e.toString());

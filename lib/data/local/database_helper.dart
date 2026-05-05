@@ -2,14 +2,16 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/user_model.dart';
 import '../models/log_model.dart';
+import '../models/token_model.dart';
 
 class DatabaseHelper {
   static const _dbName = 'powerlog.db';
-  static const _dbVersion = 3; // bumped: added appliances table
+  static const _dbVersion = 4; // bumped: added tokens table
 
   static const tableUsers = 'users';
   static const tableLogs = 'logs';
   static const tableAppliances = 'appliances';
+  static const tableTokens = 'tokens';
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -36,6 +38,7 @@ class DatabaseHelper {
     await _createUsersTable(db);
     await _createLogsTable(db);
     await _createAppliancesTable(db);
+    await _createTokensTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -44,6 +47,9 @@ class DatabaseHelper {
     }
     if (oldVersion < 3) {
       await _createAppliancesTable(db);
+    }
+    if (oldVersion < 4) {
+      await _createTokensTable(db);
     }
   }
 
@@ -75,6 +81,22 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         wattage REAL NOT NULL,
         hours_per_day REAL NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> _createTokensTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $tableTokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token_date TEXT NOT NULL,
+        amount_idr REAL NOT NULL,
+        plan_code TEXT NOT NULL,
+        rate_per_kwh REAL NOT NULL,
+        tax_percent REAL NOT NULL,
+        include_tax INTEGER NOT NULL,
+        fixed_fee REAL NOT NULL,
+        include_fixed_fee INTEGER NOT NULL
       )
     ''');
   }
@@ -196,5 +218,56 @@ class DatabaseHelper {
   Future<int> deleteAppliance(int id) async {
     final db = await database;
     return db.delete(tableAppliances, where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ── Tokens ─────────────────────────────────────────────────────────────
+
+  Future<int> insertToken(TokenModel token) async {
+    final db = await database;
+    return db.insert(tableTokens, token.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllTokens() async {
+    final db = await database;
+    return db.query(tableTokens, orderBy: 'token_date DESC, id DESC');
+  }
+
+  Future<Map<String, dynamic>?> getLatestToken() async {
+    final db = await database;
+    final maps = await db.query(
+      tableTokens,
+      orderBy: 'token_date DESC, id DESC',
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return maps.first;
+  }
+
+  Future<Map<String, dynamic>?> getTokenByDate(String date) async {
+    final db = await database;
+    final maps = await db.query(
+      tableTokens,
+      where: 'token_date = ?',
+      whereArgs: [date],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return maps.first;
+  }
+
+  Future<int> updateTokenByDate(String date, TokenModel token) async {
+    final db = await database;
+    return db.update(
+      tableTokens,
+      token.toMap()..remove('id'),
+      where: 'token_date = ?',
+      whereArgs: [date],
+    );
+  }
+
+  Future<int> deleteToken(int id) async {
+    final db = await database;
+    return db.delete(tableTokens, where: 'id = ?', whereArgs: [id]);
   }
 }

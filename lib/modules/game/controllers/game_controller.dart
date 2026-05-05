@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 // ── Tile model ────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ class WireTile {
 class GameController extends GetxController {
   // Grid: [row][col]
   late List<List<WireTile>> grid;
+  late List<List<int>> _solutionRots;
+  late List<List<TileType>> _solutionTypes;
+  late int gridSize;
 
   final version = 0.obs;       // incremented on each tap to trigger Obx rebuild
   final isWon = false.obs;
@@ -56,9 +60,15 @@ class GameController extends GetxController {
   final hintsUsed = 0.obs;
   final difficulty = GameDifficulty.easy.obs;
   final levelIndex = 0.obs;
+  final compassHeading = 0.0.obs;
+  final targetHeading = 0.0.obs;
+  final isCompassAvailable = false.obs;
 
   final _rand = Random();
   Timer? _timer;
+  StreamSubscription<MagnetometerEvent>? _magSub;
+  DateTime? _lastCompassWarn;
+  static const double _compassTolerance = 20.0;
 
   static final Map<GameDifficulty, List<LevelConfig>> _levelsByDifficulty = {
     GameDifficulty.easy: List.generate(
@@ -93,27 +103,19 @@ class GameController extends GetxController {
     ),
   };
 
-  // ── Solution (correct rotations) ──────────────────────────────────────────
-  // Path: source→(1,0)→(0,0)→(0,1)→(0,2)→(1,2)→bulb
-  static const _solutionTypes = [
-    [TileType.lBend,   TileType.straight, TileType.lBend],   // row 0
-    [TileType.lBend,   TileType.straight, TileType.lBend],   // row 1
-    [TileType.lBend,   TileType.straight, TileType.lBend],   // row 2
-  ];
-  static const _solutionRots = [
-    [1, 0, 2], // row 0: {E,S}, {E,W}, {S,W}
-    [3, 1, 0], // row 1: {W,N}, {N,S}, {N,E}
-    [0, 0, 3], // row 2: {N,E}, {E,W}, {W,N}
-  ];
+  // Dynamic path-based solution generated per level.
   @override
   void onInit() {
     super.onInit();
     _startNewGame();
+    _startCompass();
   }
 
   @override
   void onClose() {
     _timer?.cancel();
+    _magSub?.cancel();
+    _magSub = null;
     super.onClose();
   }
 
@@ -132,19 +134,50 @@ class GameController extends GetxController {
     };
   }
 
+  int get sourceRow => gridSize ~/ 2;
+  int get sourceCol => 0;
+  int get targetRow => gridSize ~/ 2;
+  int get targetCol => gridSize - 1;
+
+  bool get isCompassAligned {
+    if (!isCompassAvailable.value) return true;
+    final diff = (compassHeading.value - targetHeading.value).abs();
+    final delta = diff > 180 ? 360 - diff : diff;
+    return delta <= _compassTolerance;
+  }
+
   void _buildGrid(LevelConfig level) {
-    grid = List.generate(3, (r) => List.generate(3, (c) {
+    gridSize = _computeGridSize(level);
+    final path = _generatePath(gridSize);
+
+    _solutionTypes = List.generate(
+      gridSize,
+      (_) => List.generate(
+          gridSize, (_) => _rand.nextBool() ? TileType.straight : TileType.lBend),
+    );
+    _solutionRots = List.generate(
+      gridSize,
+      (_) => List.generate(gridSize, (_) => _rand.nextInt(4)),
+    );
+
+    _applyPathToSolution(path);
+
+    grid = List.generate(gridSize, (r) => List.generate(gridSize, (c) {
       final rot = _solutionRots[r][c];
       return WireTile(_solutionTypes[r][c], rot);
     }));
 
-    _applyScramble(level.scrambleMoves);
-    if (_isSolved()) {
-      grid[_rand.nextInt(3)][_rand.nextInt(3)].rotate();
+    final scrambleMoves = level.scrambleMoves + (gridSize * 2);
+    _applyScramble(scrambleMoves);
+    var guard = 0;
+    while (_isPathConnected() && guard < 5) {
+      grid[_rand.nextInt(gridSize)][_rand.nextInt(gridSize)].rotate();
+      guard++;
     }
   }
 
   void _startNewGame() {
+    _setTargetHeading(currentLevel);
     _buildGrid(currentLevel);
     moves.value = 0;
     hintsUsed.value = 0;
@@ -156,10 +189,34 @@ class GameController extends GetxController {
     version.value++;
   }
 
+  void _startCompass() {
+    if (_magSub != null) return;
+    _magSub = magnetometerEventStream(
+      samplingPeriod: SensorInterval.gameInterval,
+    ).listen(
+      _onMagnetometer,
+      onError: (_) {
+        isCompassAvailable.value = false;
+      },
+    );
+  }
+
+  void _onMagnetometer(MagnetometerEvent event) {
+    final heading = atan2(event.y, event.x) * (180 / pi);
+    var deg = heading;
+    if (deg < 0) deg += 360;
+    compassHeading.value = deg;
+    isCompassAvailable.value = true;
+  }
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
   void rotateTile(int r, int c) {
     if (isWon.value) return;
+    if (!isCompassAligned) {
+      _showCompassLock();
+      return;
+    }
     grid[r][c].rotate();
     moves.value++;
     _checkConnected();
@@ -193,8 +250,8 @@ class GameController extends GetxController {
       Get.snackbar('No Hints Left', 'You have used all hints for this level.');
       return;
     }
-    for (int r = 0; r < 3; r++) {
-      for (int c = 0; c < 3; c++) {
+    for (int r = 0; r < gridSize; r++) {
+      for (int c = 0; c < gridSize; c++) {
         if (grid[r][c].rotation != _solutionRots[r][c]) {
           grid[r][c].rotation = _solutionRots[r][c];
           hintsUsed.value++;
@@ -207,15 +264,15 @@ class GameController extends GetxController {
   }
 
   // ── BFS connectivity ──────────────────────────────────────────────────────
-  // Source is at (row=1, left side) — enters (1,0) from West (dir=3).
-  // Win: reach (1,2) and it has East (dir=1) connection.
+  // Source is at (row=mid, left side) — enters from West (dir=3).
+  // Win: reach (row=mid, last col) and it has East (dir=1) connection.
 
   void _checkConnected({bool showSuccess = true}) {
     final powered = <String>{};
     var won = false;
 
-    // (1,0) must accept West connection
-    if (!grid[1][0].connections.contains(3)) {
+    // Source must accept West connection
+    if (!grid[sourceRow][sourceCol].connections.contains(3)) {
       poweredCells.clear();
       isWon.value = false;
       return;
@@ -233,7 +290,7 @@ class GameController extends GetxController {
       }
     }
 
-    enqueue(1, 0, 3);
+    enqueue(sourceRow, sourceCol, 3);
 
     while (queue.isNotEmpty) {
       final curr = queue.removeFirst();
@@ -242,15 +299,15 @@ class GameController extends GetxController {
       for (final dir in grid[r][c].connections) {
         if (dir == from) continue;
 
-        // Win condition: exit East from (1,2)
-        if (r == 1 && c == 2 && dir == 1) {
+        // Win condition: exit East from target
+        if (r == targetRow && c == targetCol && dir == 1) {
           won = true;
           continue;
         }
 
-        final nr = r + [-1, 0, 1, 0][dir];
-        final nc = c + [0, 1, 0, -1][dir];
-        if (nr < 0 || nr > 2 || nc < 0 || nc > 2) continue;
+        final nr = r + _dr(dir);
+        final nc = c + _dc(dir);
+        if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) continue;
 
         final opposite = (dir + 2) % 4;
         if (!grid[nr][nc].connections.contains(opposite)) continue;
@@ -290,19 +347,183 @@ class GameController extends GetxController {
 
   void _applyScramble(int moves) {
     for (int i = 0; i < moves; i++) {
-      final r = _rand.nextInt(3);
-      final c = _rand.nextInt(3);
+      final r = _rand.nextInt(gridSize);
+      final c = _rand.nextInt(gridSize);
       grid[r][c].rotate();
     }
   }
 
-  bool _isSolved() {
-    for (int r = 0; r < 3; r++) {
-      for (int c = 0; c < 3; c++) {
-        if (grid[r][c].rotation != _solutionRots[r][c]) return false;
+  int _computeGridSize(LevelConfig level) {
+    final base = switch (difficulty.value) {
+      GameDifficulty.easy => 4,
+      GameDifficulty.medium => 5,
+      GameDifficulty.hard => 6,
+    };
+    final bump = (level.id - 1) ~/ 4; // every 4 levels add size
+    final size = base + bump;
+    return size.clamp(4, 6);
+  }
+
+  List<List<int>> _generatePath(int size) {
+    final start = [sourceRow, sourceCol];
+    final target = [targetRow, targetCol];
+    final minLen = size + (size ~/ 2);
+
+    for (int attempt = 0; attempt < 80; attempt++) {
+      final path = <List<int>>[start];
+      final visited = <String>{'${start[0]},${start[1]}'};
+
+      bool dfs(int r, int c) {
+        if (r == target[0] && c == target[1]) {
+          return path.length >= minLen;
+        }
+
+        final dirs = [0, 1, 2, 3]; // N,E,S,W
+        dirs.shuffle(_rand);
+        if (_rand.nextDouble() < 0.6) {
+          dirs.sort((a, b) {
+            final da = _manhattan(r + _dr(a), c + _dc(a), target[0], target[1]);
+            final db = _manhattan(r + _dr(b), c + _dc(b), target[0], target[1]);
+            return da.compareTo(db);
+          });
+        }
+
+        for (final dir in dirs) {
+          final nr = r + _dr(dir);
+          final nc = c + _dc(dir);
+          if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
+          final key = '$nr,$nc';
+          if (visited.contains(key)) continue;
+          visited.add(key);
+          path.add([nr, nc]);
+          if (dfs(nr, nc)) return true;
+          path.removeLast();
+          visited.remove(key);
+        }
+        return false;
+      }
+
+      if (dfs(start[0], start[1])) {
+        return path;
       }
     }
-    return true;
+
+    // Fallback: simple straight path
+    final fallback = <List<int>>[];
+    for (int c = 0; c < size; c++) {
+      fallback.add([sourceRow, c]);
+    }
+    return fallback;
+  }
+
+  void _applyPathToSolution(List<List<int>> path) {
+    for (int i = 0; i < path.length; i++) {
+      final r = path[i][0];
+      final c = path[i][1];
+      final required = <int>{};
+
+      if (i == 0) {
+        required.add(3); // west from source
+        final next = path[i + 1];
+        required.add(_dirBetween(r, c, next[0], next[1]));
+      } else if (i == path.length - 1) {
+        required.add(1); // east to bulb
+        final prev = path[i - 1];
+        required.add(_dirBetween(r, c, prev[0], prev[1]));
+      } else {
+        final prev = path[i - 1];
+        final next = path[i + 1];
+        required.add(_dirBetween(r, c, prev[0], prev[1]));
+        required.add(_dirBetween(r, c, next[0], next[1]));
+      }
+
+      final match = _matchTile(required);
+      _solutionTypes[r][c] = match.$1;
+      _solutionRots[r][c] = match.$2;
+    }
+  }
+
+  (TileType, int) _matchTile(Set<int> required) {
+    for (final type in [TileType.straight, TileType.lBend]) {
+      for (int rot = 0; rot < 4; rot++) {
+        if (_connectionsFor(type, rot).containsAll(required) &&
+            _connectionsFor(type, rot).length == required.length) {
+          return (type, rot);
+        }
+      }
+    }
+    return (TileType.straight, 0);
+  }
+
+  Set<int> _connectionsFor(TileType type, int rotation) {
+    final base = type == TileType.straight ? {1, 3} : {0, 1};
+    return base.map((d) => (d + rotation) % 4).toSet();
+  }
+
+  int _dirBetween(int r, int c, int nr, int nc) {
+    if (nr == r - 1 && nc == c) return 0;
+    if (nr == r && nc == c + 1) return 1;
+    if (nr == r + 1 && nc == c) return 2;
+    return 3;
+  }
+
+  int _dr(int dir) => [-1, 0, 1, 0][dir];
+  int _dc(int dir) => [0, 1, 0, -1][dir];
+  int _manhattan(int r, int c, int tr, int tc) => (r - tr).abs() + (c - tc).abs();
+
+  bool _isPathConnected() {
+    // quick check using BFS without side effects
+    if (!grid[sourceRow][sourceCol].connections.contains(3)) return false;
+
+    final queue = Queue<List<int>>();
+    final visited = <String>{};
+    queue.add([sourceRow, sourceCol, 3]);
+
+    while (queue.isNotEmpty) {
+      final curr = queue.removeFirst();
+      final r = curr[0], c = curr[1], from = curr[2];
+      final key = '$r,$c,$from';
+      if (visited.contains(key)) continue;
+      visited.add(key);
+
+      for (final dir in grid[r][c].connections) {
+        if (dir == from) continue;
+        if (r == targetRow && c == targetCol && dir == 1) {
+          return true;
+        }
+        final nr = r + _dr(dir);
+        final nc = c + _dc(dir);
+        if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) continue;
+        final opposite = (dir + 2) % 4;
+        if (!grid[nr][nc].connections.contains(opposite)) continue;
+        queue.add([nr, nc, opposite]);
+      }
+    }
+    return false;
+  }
+
+  void _setTargetHeading(LevelConfig level) {
+    const targets = [0, 90, 180, 270];
+    final difficultyIndex = difficulty.value.index;
+    final index = (level.id + difficultyIndex) % targets.length;
+    targetHeading.value = targets[index].toDouble();
+  }
+
+  void _showCompassLock() {
+    final now = DateTime.now();
+    if (_lastCompassWarn != null &&
+        now.difference(_lastCompassWarn!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastCompassWarn = now;
+    final target = targetHeading.value.toStringAsFixed(0);
+    Get.snackbar(
+      'Compass Lock',
+      'Align phone to $target° to rotate tiles.',
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 1),
+      margin: const EdgeInsets.all(12),
+    );
   }
 
   void _showTimeUp() {

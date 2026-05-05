@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import 'package:powerlog/utils/timezone_converter.dart';
 import '../../../app/theme/app_colors.dart';
 import '../controllers/profile_controller.dart';
@@ -24,7 +23,7 @@ class ProfileView extends GetView<ProfileController> {
             const SizedBox(height: 20),
             _SettingsSection(),
             const SizedBox(height: 20),
-            _TariffSection(),
+            _CompassSection(),
             const SizedBox(height: 20),
             _TimezoneSection(),
           ],
@@ -147,247 +146,6 @@ class _ProfileCard extends GetView<ProfileController> {
   }
 }
 
-// ── Tariff settings section ─────────────────────────────────────────────────
-
-class _TariffSection extends GetView<ProfileController> {
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final rateText = _formatIdr(controller.ratePerKwh.value);
-      final feeText = _formatIdr(controller.fixedFee.value);
-      final taxText = '${controller.taxPercent.value.toStringAsFixed(1)}%';
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.receipt_long_outlined,
-                  color: AppColors.primary, size: 18),
-              const SizedBox(width: 8),
-              const Text(
-                'Tariff Settings',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed: () => _showTariffInfo(context),
-                icon: const Icon(Icons.info_outline, color: AppColors.textSecondary, size: 18),
-                tooltip: 'How the cost is calculated',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  title: const Text('Tariff Tier',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: const Text('Select your PLN category',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  trailing: DropdownButton<String>(
-                    value: controller.tariffPlanCode.value,
-                    dropdownColor: AppColors.surfaceLight,
-                    underline: const SizedBox(),
-                    icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        controller.setTariffPlan(newValue);
-                      }
-                    },
-                    items: controller.tariffPlans
-                        .map((plan) => DropdownMenuItem<String>(
-                              value: plan.code,
-                              child: Text(plan.label,
-                                  style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold)),
-                            ))
-                        .toList(),
-                  ),
-                ),
-                const Divider(color: AppColors.surfaceLight, height: 1),
-                ListTile(
-                  onTap: () => _editNumber(
-                    context: context,
-                    title: 'Rate per kWh (IDR)',
-                    initial: controller.ratePerKwh.value,
-                    onSave: controller.updateRatePerKwh,
-                  ),
-                  title: const Text('Rate per kWh (IDR)',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: Text(rateText,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  leading: const Icon(Icons.electric_bolt_outlined, color: AppColors.primary),
-                  trailing: const Icon(Icons.edit, color: AppColors.textSecondary, size: 18),
-                ),
-                const Divider(color: AppColors.surfaceLight, height: 1),
-                SwitchListTile(
-                  value: controller.includeTax.value,
-                  onChanged: controller.toggleIncludeTax,
-                  title: const Text('Apply tax',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: Text('Tax: $taxText',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  secondary: const Icon(Icons.percent, color: AppColors.primary),
-                  activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
-                  activeThumbColor: AppColors.primary,
-                ),
-                if (controller.includeTax.value) ...[
-                  const Divider(color: AppColors.surfaceLight, height: 1),
-                  ListTile(
-                    onTap: () => _editNumber(
-                      context: context,
-                      title: 'Tax percent',
-                      initial: controller.taxPercent.value,
-                      onSave: controller.updateTaxPercent,
-                    ),
-                    title: const Text('Tax percent',
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                    subtitle: Text(taxText,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                    leading: const Icon(Icons.receipt_outlined, color: AppColors.primary),
-                    trailing: const Icon(Icons.edit, color: AppColors.textSecondary, size: 18),
-                  ),
-                ],
-                const Divider(color: AppColors.surfaceLight, height: 1),
-                SwitchListTile(
-                  value: controller.includeFixedFee.value,
-                  onChanged: controller.toggleIncludeFixedFee,
-                  title: const Text('Fixed monthly fee',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: Text('Fee: $feeText',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  secondary: const Icon(Icons.calendar_month, color: AppColors.primary),
-                  activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
-                  activeThumbColor: AppColors.primary,
-                ),
-                if (controller.includeFixedFee.value) ...[
-                  const Divider(color: AppColors.surfaceLight, height: 1),
-                  ListTile(
-                    onTap: () => _editNumber(
-                      context: context,
-                      title: 'Fixed monthly fee (IDR)',
-                      initial: controller.fixedFee.value,
-                      onSave: controller.updateFixedFee,
-                    ),
-                    title: const Text('Fixed monthly fee (IDR)',
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                    subtitle: Text(feeText,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                    leading: const Icon(Icons.payments_outlined, color: AppColors.primary),
-                    trailing: const Icon(Icons.edit, color: AppColors.textSecondary, size: 18),
-                  ),
-                ],
-                const Divider(color: AppColors.surfaceLight, height: 1),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                  child: Text(
-                    'Rates are editable. Fixed fee affects monthly prediction only.',
-                    style: TextStyle(
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    });
-  }
-
-  Future<void> _editNumber({
-    required BuildContext context,
-    required String title,
-    required double initial,
-    required Future<void> Function(double) onSave,
-  }) async {
-    final ctrl = TextEditingController(text: initial.toStringAsFixed(2));
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(
-            hintText: 'Enter a number',
-            hintStyle: TextStyle(color: AppColors.textSecondary),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, ctrl.text),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == null) return;
-    final value = double.tryParse(result.replaceAll(',', '.'));
-    if (value == null) return;
-    await onSave(value);
-  }
-
-  String _formatIdr(double value) {
-    return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(value);
-  }
-
-  void _showTariffInfo(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Tariff Formula',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text(
-          'Log cost = kWh x rate\n'
-          'If tax enabled: add tax%\n'
-          'Monthly prediction = total usage cost + fixed fee (optional)',
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it',
-                style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Achievements section ──────────────────────────────────────────────────────
 
 class _AchievementsSection extends GetView<ProfileController> {
@@ -491,7 +249,6 @@ class _SettingsSection extends GetView<ProfileController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final reminderLabel = controller.reminderTime.value.format(context);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -536,32 +293,146 @@ class _SettingsSection extends GetView<ProfileController> {
                 SwitchListTile(
                   value: controller.isNotificationEnabled.value,
                   onChanged: controller.toggleNotification,
-                  title: const Text('Daily Reminder',
+                  title: const Text('Auto Reminder (Token-based)',
                       style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: const Text('Remind me to log my electricity usage every day',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                  subtitle: Text(controller.autoReminderSubtitle,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                   secondary: const Icon(Icons.notifications_active_outlined, color: AppColors.primary),
                   activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                   activeThumbColor: AppColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 const Divider(color: AppColors.surfaceLight, height: 1),
-                ListTile(
-                  onTap: () async {
-                    final picked = await showTimePicker(
-                      context: context,
-                      initialTime: controller.reminderTime.value,
-                    );
-                    if (picked != null) {
-                      await controller.setReminderTime(picked);
-                    }
-                  },
-                  title: const Text('Reminder Time',
+                SwitchListTile(
+                  value: controller.isCustomReminderEnabled.value,
+                  onChanged: controller.toggleCustomReminder,
+                  title: const Text('Custom Reminder',
                       style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: Text('Daily at $reminderLabel',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  leading: const Icon(Icons.access_time, color: AppColors.primary),
+                  subtitle: const Text('Pick your own date and time',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                  secondary: const Icon(Icons.event_available, color: AppColors.primary),
+                  activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                  activeThumbColor: AppColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                if (controller.isCustomReminderEnabled.value) ...[
+                  const Divider(color: AppColors.surfaceLight, height: 1),
+                  ListTile(
+                    onTap: () async {
+                      final initial = controller.customReminderDateTime.value;
+                      final pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: initial,
+                        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (pickedDate == null) return;
+
+                      final pickedTime = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(initial),
+                      );
+                      if (pickedTime == null) return;
+
+                      final next = DateTime(
+                        pickedDate.year,
+                        pickedDate.month,
+                        pickedDate.day,
+                        pickedTime.hour,
+                        pickedTime.minute,
+                      );
+                      await controller.setCustomReminderDateTime(next);
+                    },
+                    title: const Text('Custom Reminder Time',
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                    subtitle: Text(controller.customReminderLabel,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                    leading: const Icon(Icons.access_time, color: AppColors.primary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+// ── Compass section ────────────────────────────────────────────────────────
+
+class _CompassSection extends GetView<ProfileController> {
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final heading = controller.compassHeading.value;
+      final available = controller.isCompassAvailable.value;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.explore_outlined,
+                  color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Compass',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.surfaceLight),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Transform.rotate(
+                    angle: (heading * 3.141592653589793) / 180,
+                    child: Icon(Icons.navigation,
+                        color: available
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        size: 26),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Heading',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 11)),
+                      const SizedBox(height: 4),
+                      Text(
+                        available
+                            ? '${heading.toStringAsFixed(0)}°'
+                            : 'Compass unavailable',
+                        style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

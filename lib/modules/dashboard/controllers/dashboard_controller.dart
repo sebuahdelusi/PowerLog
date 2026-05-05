@@ -20,6 +20,7 @@ class DashboardController extends GetxController {
     final home = Get.find<HomeController>();
     if (index == 0) {
       home.resumeSensors();
+      home.loadAppliances();
     } else {
       home.pauseSensors();
     }

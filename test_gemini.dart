@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 void main() async {

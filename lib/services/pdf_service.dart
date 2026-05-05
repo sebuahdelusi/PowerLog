@@ -12,14 +12,18 @@ class PdfService {
     String username,
     List<LogModel> logs,
     List<ApplianceModel> appliances,
+    double ratePerKwh,
   ) async {
     final pdf = pw.Document();
 
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     // Calculate totals
-    double totalKwh = logs.fold(0.0, (sum, item) => sum + item.kwhUsage);
-    double totalCost = logs.fold(0.0, (sum, item) => sum + item.estimatedCost);
+    double totalLoggedKwh = logs.fold(0.0, (sum, item) => sum + item.kwhUsage);
+    double totalLoggedCost = logs.fold(0.0, (sum, item) => sum + item.estimatedCost);
+    double dailyApplianceKwh = appliances.fold(0.0, (sum, item) => sum + item.dailyKwh);
+    double monthlyPredictedKwh = dailyApplianceKwh * 30;
+    double monthlyPredictedCost = monthlyPredictedKwh * ratePerKwh;
 
     pdf.addPage(
       pw.MultiPage(
@@ -29,17 +33,19 @@ class PdfService {
           return [
             _buildHeader(username),
             pw.SizedBox(height: 20),
-            _buildSummary(totalKwh, totalCost, currencyFormat),
+            _buildSummary(totalLoggedKwh, totalLoggedCost, currencyFormat),
             pw.SizedBox(height: 20),
             if (appliances.isNotEmpty) ...[
               pw.Text('Appliance Breakdown', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 10),
               _buildApplianceTable(appliances),
               pw.SizedBox(height: 20),
+              _buildPredictions(dailyApplianceKwh, monthlyPredictedKwh, monthlyPredictedCost, currencyFormat),
             ],
-            pw.Text('Usage History (Recent Logs)', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 10),
-            _buildLogsTable(logs, currencyFormat),
+            if (logs.isEmpty && appliances.isEmpty)
+              pw.Center(child: pw.Text('No data available to generate report.', style: const pw.TextStyle(color: PdfColors.grey))),
+            pw.SizedBox(height: 30),
+            _buildFooter(),
           ];
         },
       ),
@@ -59,37 +65,20 @@ class PdfService {
     List<ApplianceModel> appliances,
   ) async {
     const delimiter = ',';
-    final logsBuffer = StringBuffer();
-    logsBuffer.writeln('Date${delimiter}Usage_kWh${delimiter}Estimated_Cost_IDR');
-
-    for (final log in logs) {
-      logsBuffer.writeln(
-        '${_csvEscape(log.date)}$delimiter${log.kwhUsage.toStringAsFixed(2)}$delimiter${log.estimatedCost.toStringAsFixed(0)}',
+    final appsBuffer = StringBuffer();
+    appsBuffer.writeln('Appliance${delimiter}Wattage_W${delimiter}Hours_Per_Day${delimiter}Daily_kWh');
+    for (final app in appliances) {
+      appsBuffer.writeln(
+        '${_csvEscape(app.name)}$delimiter${app.wattage.toStringAsFixed(0)}$delimiter${app.hoursPerDay.toStringAsFixed(2)}$delimiter${app.dailyKwh.toStringAsFixed(2)}',
       );
     }
 
-    final appsBuffer = StringBuffer();
-    if (appliances.isNotEmpty) {
-      appsBuffer.writeln('Appliance${delimiter}Wattage_W${delimiter}Hours_Per_Day${delimiter}Daily_kWh');
-      for (final app in appliances) {
-        appsBuffer.writeln(
-          '${_csvEscape(app.name)}$delimiter${app.wattage.toStringAsFixed(0)}$delimiter${app.hoursPerDay.toStringAsFixed(2)}$delimiter${app.dailyKwh.toStringAsFixed(2)}',
-        );
-      }
-    }
-
     final output = await getTemporaryDirectory();
-    final logsFile = File('${output.path}/PowerLog_Logs.csv');
-    final logsContent = '\uFEFF${logsBuffer.toString().replaceAll('\n', '\r\n')}';
-    await logsFile.writeAsString(logsContent);
+    final appsFile = File('${output.path}/PowerLog_Appliances.csv');
+    final appsContent = '\uFEFF${appsBuffer.toString().replaceAll('\n', '\r\n')}';
+    await appsFile.writeAsString(appsContent);
 
-    if (appliances.isNotEmpty) {
-      final appsFile = File('${output.path}/PowerLog_Appliances.csv');
-      final appsContent = '\uFEFF${appsBuffer.toString().replaceAll('\n', '\r\n')}';
-      await appsFile.writeAsString(appsContent);
-    }
-
-    await OpenFilex.open(logsFile.path);
+    await OpenFilex.open(appsFile.path);
   }
 
   String _csvEscape(String value) {
@@ -163,24 +152,56 @@ class PdfService {
     );
   }
 
-  pw.Widget _buildLogsTable(List<LogModel> logs, NumberFormat currency) {
-    // Only show top 20 to avoid massive PDFs
-    final displayLogs = logs.take(20).toList();
-    
-    return pw.TableHelper.fromTextArray(
-      context: null,
-      cellAlignment: pw.Alignment.centerLeft,
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-      headerHeight: 25,
-      cellHeight: 30,
-      headers: ['Date', 'Usage', 'Estimated Cost'],
-      data: displayLogs.map((log) {
-        return [
-          DateFormat('EEE, dd MMM yyyy').format(DateTime.parse(log.date)),
-          '${log.kwhUsage.toStringAsFixed(2)} kWh',
-          currency.format(log.estimatedCost),
-        ];
-      }).toList(),
+  pw.Widget _buildPredictions(double daily, double monthly, double cost, NumberFormat currency) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text('Monthly Prediction (Based on Appliances)', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 10),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(10),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.blue200),
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              _buildPredictItem('Daily Avg', '${daily.toStringAsFixed(2)} kWh'),
+              _buildPredictItem('Monthly Est.', '${monthly.toStringAsFixed(2)} kWh'),
+              _buildPredictItem('Monthly Cost', currency.format(cost), isHighlight: true),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Text('* Monthly prediction assumes appliances are used consistently for 30 days.', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+      ],
+    );
+  }
+
+  pw.Widget _buildPredictItem(String label, String value, {bool isHighlight = false}) {
+    return pw.Column(
+      children: [
+        pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+        pw.SizedBox(height: 4),
+        pw.Text(value, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: isHighlight ? PdfColors.blue900 : PdfColors.black)),
+      ],
+    );
+  }
+
+  pw.Widget _buildFooter() {
+    return pw.Column(
+      children: [
+        pw.Divider(),
+        pw.SizedBox(height: 10),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text('Generated by PowerLog App', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
+            pw.Text('Eco-friendly Electricity Management', style: const pw.TextStyle(fontSize: 8, color: PdfColors.green700)),
+          ],
+        ),
+      ],
     );
   }
 }

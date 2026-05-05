@@ -8,6 +8,9 @@ class SessionService {
   static const _keyNotificationEnabled = 'notification_enabled';
   static const _keyReminderHour = 'notification_hour';
   static const _keyReminderMinute = 'notification_minute';
+  static const _keyCustomReminderEnabled = 'custom_reminder_enabled';
+  static const _keyCustomReminderDateTime = 'custom_reminder_datetime';
+  static const _keyAutoReminderDateTime = 'auto_reminder_datetime';
   static const _keyTimezoneCode = 'timezone_code';
   static const _keyTariffPlan = 'tariff_plan';
   static const _keyTariffRate = 'tariff_rate';
@@ -15,6 +18,8 @@ class SessionService {
   static const _keyTariffTaxPercent = 'tariff_tax_percent';
   static const _keyTariffIncludeTax = 'tariff_include_tax';
   static const _keyTariffIncludeFixedFee = 'tariff_include_fixed_fee';
+  static const _keyMeterVa = 'meter_va';
+  static const _keyTokenAmount = 'token_amount';
 
   final _storage = const FlutterSecureStorage();
 
@@ -65,6 +70,46 @@ class SessionService {
   Future<int> getReminderMinute() async {
     final val = await _storage.read(key: _keyReminderMinute);
     return int.tryParse(val ?? '') ?? 0;
+  }
+
+  Future<void> setCustomReminderEnabled(bool enabled) async {
+    await _storage.write(
+        key: _keyCustomReminderEnabled, value: enabled.toString());
+  }
+
+  Future<bool> isCustomReminderEnabled() async {
+    final val = await _storage.read(key: _keyCustomReminderEnabled);
+    return val == 'true';
+  }
+
+  Future<void> setCustomReminderDateTime(DateTime dateTime) async {
+    await _storage.write(
+      key: _keyCustomReminderDateTime,
+      value: dateTime.toIso8601String(),
+    );
+  }
+
+  Future<DateTime?> getCustomReminderDateTime() async {
+    final val = await _storage.read(key: _keyCustomReminderDateTime);
+    if (val == null || val.isEmpty) return null;
+    return DateTime.tryParse(val);
+  }
+
+  Future<void> setAutoReminderDateTime(DateTime dateTime) async {
+    await _storage.write(
+      key: _keyAutoReminderDateTime,
+      value: dateTime.toIso8601String(),
+    );
+  }
+
+  Future<DateTime?> getAutoReminderDateTime() async {
+    final val = await _storage.read(key: _keyAutoReminderDateTime);
+    if (val == null || val.isEmpty) return null;
+    return DateTime.tryParse(val);
+  }
+
+  Future<void> clearAutoReminderDateTime() async {
+    await _storage.delete(key: _keyAutoReminderDateTime);
   }
 
   Future<void> setTimezoneCode(String code) async {
@@ -129,6 +174,24 @@ class SessionService {
   Future<bool> getTariffIncludeFixedFee() async {
     final val = await _storage.read(key: _keyTariffIncludeFixedFee);
     return val == 'true';
+  }
+
+  Future<void> setMeterVa(int va) async {
+    await _storage.write(key: _keyMeterVa, value: va.toString());
+  }
+
+  Future<int> getMeterVa() async {
+    final val = await _storage.read(key: _keyMeterVa);
+    return int.tryParse(val ?? '') ?? 0;
+  }
+
+  Future<void> setTokenAmount(int amount) async {
+    await _storage.write(key: _keyTokenAmount, value: amount.toString());
+  }
+
+  Future<int> getTokenAmount() async {
+    final val = await _storage.read(key: _keyTokenAmount);
+    return int.tryParse(val ?? '') ?? 0;
   }
 
   Future<void> clearSession() async {
