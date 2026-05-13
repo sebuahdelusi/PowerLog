@@ -16,12 +16,20 @@ class PdfService {
   ) async {
     final pdf = pw.Document();
 
-    final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final currencyFormat = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     // Calculate totals
-    double totalLoggedKwh = logs.fold(0.0, (sum, item) => sum + item.kwhUsage);
-    double totalLoggedCost = logs.fold(0.0, (sum, item) => sum + item.estimatedCost);
-    double dailyApplianceKwh = appliances.fold(0.0, (sum, item) => sum + item.dailyKwh);
+    final totals = _calculateReportTotals(logs, appliances, ratePerKwh);
+    final totalLoggedKwh = totals.loggedKwh;
+    final totalLoggedCost = totals.loggedCost;
+    double dailyApplianceKwh = appliances.fold(
+      0.0,
+      (sum, item) => sum + item.dailyKwh,
+    );
     double monthlyPredictedKwh = dailyApplianceKwh * 30;
     double monthlyPredictedCost = monthlyPredictedKwh * ratePerKwh;
 
@@ -36,14 +44,30 @@ class PdfService {
             _buildSummary(totalLoggedKwh, totalLoggedCost, currencyFormat),
             pw.SizedBox(height: 20),
             if (appliances.isNotEmpty) ...[
-              pw.Text('Appliance Breakdown', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Appliance Breakdown',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.SizedBox(height: 10),
               _buildApplianceTable(appliances),
               pw.SizedBox(height: 20),
-              _buildPredictions(dailyApplianceKwh, monthlyPredictedKwh, monthlyPredictedCost, currencyFormat),
+              _buildPredictions(
+                dailyApplianceKwh,
+                monthlyPredictedKwh,
+                monthlyPredictedCost,
+                currencyFormat,
+              ),
             ],
             if (logs.isEmpty && appliances.isEmpty)
-              pw.Center(child: pw.Text('No data available to generate report.', style: const pw.TextStyle(color: PdfColors.grey))),
+              pw.Center(
+                child: pw.Text(
+                  'No data available to generate report.',
+                  style: const pw.TextStyle(color: PdfColors.grey),
+                ),
+              ),
             pw.SizedBox(height: 30),
             _buildFooter(),
           ];
@@ -66,7 +90,9 @@ class PdfService {
   ) async {
     const delimiter = ',';
     final appsBuffer = StringBuffer();
-    appsBuffer.writeln('Appliance${delimiter}Wattage_W${delimiter}Hours_Per_Day${delimiter}Daily_kWh');
+    appsBuffer.writeln(
+      'Appliance${delimiter}Wattage_W${delimiter}Hours_Per_Day${delimiter}Daily_kWh',
+    );
     for (final app in appliances) {
       appsBuffer.writeln(
         '${_csvEscape(app.name)}$delimiter${app.wattage.toStringAsFixed(0)}$delimiter${app.hoursPerDay.toStringAsFixed(2)}$delimiter${app.dailyKwh.toStringAsFixed(2)}',
@@ -75,7 +101,8 @@ class PdfService {
 
     final output = await getTemporaryDirectory();
     final appsFile = File('${output.path}/PowerLog_Appliances.csv');
-    final appsContent = '\uFEFF${appsBuffer.toString().replaceAll('\n', '\r\n')}';
+    final appsContent =
+        '\uFEFF${appsBuffer.toString().replaceAll('\n', '\r\n')}';
     await appsFile.writeAsString(appsContent);
 
     await OpenFilex.open(appsFile.path);
@@ -93,18 +120,38 @@ class PdfService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('PowerLog', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+        pw.Text(
+          'PowerLog',
+          style: pw.TextStyle(
+            fontSize: 24,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.blue900,
+          ),
+        ),
         pw.SizedBox(height: 4),
-        pw.Text('Electricity Usage Report', style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+        pw.Text(
+          'Electricity Usage Report',
+          style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
+        ),
         pw.SizedBox(height: 14),
-        pw.Text('User: $username', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-        pw.Text('Date Generated: ${DateFormat('dd MMM yyyy').format(DateTime.now())}', style: const pw.TextStyle(fontSize: 10)),
+        pw.Text(
+          'User: $username',
+          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.Text(
+          'Date Generated: ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
+          style: const pw.TextStyle(fontSize: 10),
+        ),
         pw.Divider(),
       ],
     );
   }
 
-  pw.Widget _buildSummary(double totalKwh, double totalCost, NumberFormat currency) {
+  pw.Widget _buildSummary(
+    double totalKwh,
+    double totalCost,
+    NumberFormat currency,
+  ) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -117,15 +164,40 @@ class PdfService {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Total Logged Usage', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-              pw.Text('${totalKwh.toStringAsFixed(2)} kWh', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Total Logged Usage',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey700,
+                ),
+              ),
+              pw.Text(
+                '${totalKwh.toStringAsFixed(2)} kWh',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
             ],
           ),
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text('Total Estimated Cost', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-              pw.Text(currency.format(totalCost), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+              pw.Text(
+                'Total Estimated Cost',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey700,
+                ),
+              ),
+              pw.Text(
+                currency.format(totalCost),
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue900,
+                ),
+              ),
             ],
           ),
         ],
@@ -152,11 +224,19 @@ class PdfService {
     );
   }
 
-  pw.Widget _buildPredictions(double daily, double monthly, double cost, NumberFormat currency) {
+  pw.Widget _buildPredictions(
+    double daily,
+    double monthly,
+    double cost,
+    NumberFormat currency,
+  ) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Monthly Prediction (Based on Appliances)', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          'Monthly Prediction (Based on Appliances)',
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+        ),
         pw.SizedBox(height: 10),
         pw.Container(
           padding: const pw.EdgeInsets.all(10),
@@ -168,23 +248,47 @@ class PdfService {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               _buildPredictItem('Daily Avg', '${daily.toStringAsFixed(2)} kWh'),
-              _buildPredictItem('Monthly Est.', '${monthly.toStringAsFixed(2)} kWh'),
-              _buildPredictItem('Monthly Cost', currency.format(cost), isHighlight: true),
+              _buildPredictItem(
+                'Monthly Est.',
+                '${monthly.toStringAsFixed(2)} kWh',
+              ),
+              _buildPredictItem(
+                'Monthly Cost',
+                currency.format(cost),
+                isHighlight: true,
+              ),
             ],
           ),
         ),
         pw.SizedBox(height: 8),
-        pw.Text('* Monthly prediction assumes appliances are used consistently for 30 days.', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+        pw.Text(
+          '* Monthly prediction assumes appliances are used consistently for 30 days.',
+          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+        ),
       ],
     );
   }
 
-  pw.Widget _buildPredictItem(String label, String value, {bool isHighlight = false}) {
+  pw.Widget _buildPredictItem(
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
     return pw.Column(
       children: [
-        pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+        pw.Text(
+          label,
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+        ),
         pw.SizedBox(height: 4),
-        pw.Text(value, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: isHighlight ? PdfColors.blue900 : PdfColors.black)),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: 12,
+            fontWeight: pw.FontWeight.bold,
+            color: isHighlight ? PdfColors.blue900 : PdfColors.black,
+          ),
+        ),
       ],
     );
   }
@@ -197,11 +301,56 @@ class PdfService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Generated by PowerLog App', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
-            pw.Text('Eco-friendly Electricity Management', style: const pw.TextStyle(fontSize: 8, color: PdfColors.green700)),
+            pw.Text(
+              'Generated by PowerLog App',
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+            ),
+            pw.Text(
+              'Eco-friendly Electricity Management',
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.green700),
+            ),
           ],
         ),
       ],
     );
   }
+
+  _ReportTotals _calculateReportTotals(
+    List<LogModel> logs,
+    List<ApplianceModel> appliances,
+    double ratePerKwh,
+  ) {
+    var loggedKwh = logs.fold(0.0, (sum, item) => sum + item.kwhUsage);
+    var loggedCost = logs.fold(0.0, (sum, item) => sum + item.estimatedCost);
+
+    if (loggedCost <= 0 && ratePerKwh > 0) {
+      final recalculatedCost = logs.fold(
+        0.0,
+        (sum, item) => sum + (item.kwhUsage * ratePerKwh),
+      );
+      if (recalculatedCost > 0) {
+        loggedCost = recalculatedCost;
+      }
+    }
+
+    if (loggedKwh <= 0 && loggedCost > 0 && ratePerKwh > 0) {
+      loggedKwh = loggedCost / ratePerKwh;
+    }
+
+    if (logs.isEmpty && appliances.isNotEmpty) {
+      final dailyKwh = appliances.fold(0.0, (sum, item) => sum + item.dailyKwh);
+      final monthlyKwh = dailyKwh * 30;
+      loggedKwh = monthlyKwh;
+      loggedCost = monthlyKwh * ratePerKwh;
+    }
+
+    return _ReportTotals(loggedKwh, loggedCost);
+  }
+}
+
+class _ReportTotals {
+  final double loggedKwh;
+  final double loggedCost;
+
+  const _ReportTotals(this.loggedKwh, this.loggedCost);
 }
