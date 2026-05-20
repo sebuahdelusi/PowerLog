@@ -13,8 +13,11 @@ import 'package:powerlog/data/repositories/log_repository.dart' as powerlog_log_
 import 'package:powerlog/data/repositories/appliance_repository.dart' as powerlog_app_repo;
 import 'package:powerlog/services/pdf_service.dart' as powerlog_pdf_service;
 import 'package:powerlog/services/tariff_service.dart';
+import 'package:powerlog/services/exchange_rate_service.dart';
 import 'package:powerlog/modules/home/controllers/home_controller.dart';
 import 'package:powerlog/modules/analytics/controllers/analytics_controller.dart';
+import 'package:powerlog/data/local/database_helper.dart';
+import 'package:powerlog/app/theme/app_colors.dart';
 
 class ProfileController extends GetxController {
   final _session = SessionService();
@@ -44,6 +47,13 @@ class ProfileController extends GetxController {
   final includeTax = true.obs;
   final includeFixedFee = false.obs;
 
+  // Currency settings
+  final currencyOptions = <String>[].obs;
+  final selectedCurrencies = <String>[].obs;
+  final defaultCurrency = ''.obs;
+  final isCurrencyLoading = false.obs;
+  final currencyError = RxnString();
+
   Timer? _clockTimer;
   StreamSubscription<MagnetometerEvent>? _magSub;
 
@@ -56,6 +66,7 @@ class ProfileController extends GetxController {
     _checkBiometric();
     _initSettings();
     _loadTariffSettings();
+    _loadCurrencySettings();
     evaluateAchievements();
   }
 
@@ -85,6 +96,120 @@ class ProfileController extends GetxController {
     taxPercent.value = cfg.taxPercent;
     includeTax.value = cfg.includeTax;
     includeFixedFee.value = cfg.includeFixedFee;
+  }
+
+  Future<void> _loadCurrencySettings() async {
+    isCurrencyLoading.value = true;
+    currencyError.value = null;
+    try {
+      final exchange = Get.find<ExchangeRateService>();
+      final options = await exchange.getAvailableCurrencies();
+      final selected = await exchange.getSelectedCurrencies();
+      var defaultCode = await exchange.getDefaultCurrency();
+
+      var availableOptions = options;
+      if (availableOptions.isEmpty) {
+        final rates = await exchange.getRates('idr');
+        if (rates.isNotEmpty) {
+          availableOptions = rates.keys.toList()..sort();
+        }
+      }
+      currencyError.value = exchange.lastError;
+
+      final filteredSelected =
+          _filterSelectedCurrencies(availableOptions, selected);
+      if (!filteredSelected.contains(defaultCode)) {
+        defaultCode = filteredSelected.first;
+        await exchange.setDefaultCurrency(defaultCode);
+      }
+
+      if (availableOptions.isEmpty) {
+        currencyOptions.assignAll(filteredSelected);
+      } else {
+        currencyOptions.assignAll(availableOptions);
+      }
+      selectedCurrencies.assignAll(filteredSelected);
+      defaultCurrency.value = defaultCode;
+    } catch (_) {
+      if (selectedCurrencies.isEmpty) {
+        selectedCurrencies.assignAll(['USD', 'EUR', 'GBP']);
+        defaultCurrency.value = 'USD';
+      }
+      if (currencyOptions.isEmpty) {
+        currencyOptions.assignAll(selectedCurrencies);
+      }
+      currencyError.value =
+          currencyError.value ?? 'Failed to load currency list.';
+    } finally {
+      isCurrencyLoading.value = false;
+    }
+  }
+
+  Future<void> refreshCurrencyOptions() async {
+    isCurrencyLoading.value = true;
+    currencyError.value = null;
+    try {
+      final exchange = Get.find<ExchangeRateService>();
+      var options = await exchange.getAvailableCurrencies(forceRefresh: true);
+      if (options.isEmpty) {
+        final rates = await exchange.getRates('idr', forceRefresh: true);
+        if (rates.isNotEmpty) {
+          options = rates.keys.toList()..sort();
+        }
+      }
+      currencyError.value = exchange.lastError;
+      if (options.isNotEmpty) {
+        currencyOptions.assignAll(options);
+      }
+    } catch (_) {
+      if (currencyOptions.isEmpty) {
+        currencyOptions.assignAll(selectedCurrencies);
+      }
+      currencyError.value =
+          currencyError.value ?? 'Failed to refresh currency list.';
+    } finally {
+      isCurrencyLoading.value = false;
+    }
+  }
+
+  List<String> _filterSelectedCurrencies(
+    List<String> options,
+    List<String> selected,
+  ) {
+    final allowed = options.isEmpty
+        ? selected
+        : selected.where((code) => options.contains(code)).toList();
+    if (allowed.isNotEmpty) return allowed;
+
+    final fallback = ['USD', 'EUR', 'GBP'];
+    final valid = options.isEmpty
+        ? fallback
+        : fallback.where((code) => options.contains(code)).toList();
+    return valid.isNotEmpty ? valid : (options.isNotEmpty ? [options.first] : []);
+  }
+
+  Future<void> toggleCurrencySelection(String code, bool enabled) async {
+    final exchange = Get.find<ExchangeRateService>();
+    final updated = selectedCurrencies.toList();
+    if (enabled) {
+      if (!updated.contains(code)) updated.add(code);
+    } else {
+      if (updated.length <= 1) return;
+      updated.remove(code);
+    }
+    updated.sort();
+    selectedCurrencies.assignAll(updated);
+    await exchange.setSelectedCurrencies(updated);
+
+    if (!updated.contains(defaultCurrency.value)) {
+      defaultCurrency.value = updated.first;
+      await exchange.setDefaultCurrency(defaultCurrency.value);
+    }
+  }
+
+  Future<void> setDefaultCurrency(String code) async {
+    defaultCurrency.value = code;
+    await Get.find<ExchangeRateService>().setDefaultCurrency(code);
   }
 
   Future<void> _loadNotificationSetting() async {
@@ -485,21 +610,92 @@ class ProfileController extends GetxController {
     has7DayStreak.value = streak >= 7;
   }
 
+  Future<void> seedMockLogs(String scenario) async {
+    final logRepo = powerlog_log_repo.LogRepository();
+    
+    try {
+      final db = DatabaseHelper.instance;
+      final activeDb = await db.database;
+      await activeDb.delete(DatabaseHelper.tableLogs);
+
+      final now = DateTime.now();
+      final df = DateFormat('yyyy-MM-dd');
+
+      if (scenario == 'eco_saver') {
+        await logRepo.addLog('3.2', date: df.format(now));
+        Get.snackbar(
+          'Scenario Loaded',
+          'Eco Saver scenario initialized: 1 log (3.2 kWh) added.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.surface,
+          colorText: AppColors.textPrimary,
+        );
+      } else if (scenario == 'streak') {
+        for (var i = 0; i < 7; i++) {
+          final date = now.subtract(Duration(days: i));
+          await logRepo.addLog('4.2', date: df.format(date));
+        }
+        Get.snackbar(
+          'Scenario Loaded',
+          '7-Day Streak scenario initialized: 7 consecutive logs added.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.surface,
+          colorText: AppColors.textPrimary,
+        );
+      } else if (scenario == 'heavy') {
+        await logRepo.addLog('7.5', date: df.format(now));
+        Get.snackbar(
+          'Scenario Loaded',
+          'Heavy Usage scenario initialized: 1 log (7.5 kWh) added.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.surface,
+          colorText: AppColors.textPrimary,
+        );
+      } else if (scenario == 'clear') {
+        Get.snackbar(
+          'Logs Cleared',
+          'All mock logs cleared.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.surface,
+          colorText: AppColors.textPrimary,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to seed scenario: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
+    }
+
+    await evaluateAchievements();
+  }
+
   Future<void> exportPdf() async {
     isExporting.value = true;
     try {
       final logRepo = powerlog_log_repo.LogRepository();
       final appRepo = powerlog_app_repo.ApplianceRepository();
       final pdfService = powerlog_pdf_service.PdfService();
+      final exchange = Get.find<ExchangeRateService>();
 
       final logs = await logRepo.fetchAllLogs();
       final appliances = await appRepo.fetchAllAppliances();
+
+      final currencyCode = await exchange.getDefaultCurrency();
+      final rate = await exchange.getRate(from: 'IDR', to: currencyCode);
+      final safeRate = rate ?? 1.0;
+      final safeCode = rate == null || safeRate <= 0 ? 'IDR' : currencyCode;
 
       await pdfService.generateAndOpenMonthlyReport(
         username.value,
         logs,
         appliances,
         ratePerKwh.value,
+        currencyCode: safeCode,
+        currencyRate: safeRate,
       );
     } catch (e) {
       Get.snackbar('Export Failed', e.toString());

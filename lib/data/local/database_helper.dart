@@ -6,7 +6,7 @@ import '../models/token_model.dart';
 
 class DatabaseHelper {
   static const _dbName = 'powerlog.db';
-  static const _dbVersion = 4; // bumped: added tokens table
+  static const _dbVersion = 5; // bumped: added input_at to tokens table
 
   static const tableUsers = 'users';
   static const tableLogs = 'logs';
@@ -51,6 +51,12 @@ class DatabaseHelper {
     if (oldVersion < 4) {
       await _createTokensTable(db);
     }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE $tableTokens ADD COLUMN input_at TEXT');
+      await db.execute(
+        'UPDATE $tableTokens SET input_at = token_date WHERE input_at IS NULL',
+      );
+    }
   }
 
   Future<void> _createUsersTable(Database db) async {
@@ -90,6 +96,7 @@ class DatabaseHelper {
       CREATE TABLE $tableTokens (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         token_date TEXT NOT NULL,
+        input_at TEXT,
         amount_idr REAL NOT NULL,
         plan_code TEXT NOT NULL,
         rate_per_kwh REAL NOT NULL,
@@ -230,14 +237,17 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getAllTokens() async {
     final db = await database;
-    return db.query(tableTokens, orderBy: 'token_date DESC, id DESC');
+    return db.query(
+      tableTokens,
+      orderBy: 'input_at DESC, token_date DESC, id DESC',
+    );
   }
 
   Future<Map<String, dynamic>?> getLatestToken() async {
     final db = await database;
     final maps = await db.query(
       tableTokens,
-      orderBy: 'token_date DESC, id DESC',
+      orderBy: 'input_at DESC, token_date DESC, id DESC',
       limit: 1,
     );
     if (maps.isEmpty) return null;

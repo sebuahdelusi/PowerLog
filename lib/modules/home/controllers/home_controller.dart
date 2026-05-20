@@ -29,6 +29,7 @@ class HomeController extends GetxController {
   final tariffPlanCode = ''.obs;
   final tokenDate = DateTime.now().obs;
   final isConfirming = false.obs;
+  final now = DateTime.now().obs;
 
   // ── Gyroscope ─────────────────────────────────────────────────────────────
   final gyroX = 0.0.obs; // angular velocity x-axis
@@ -44,6 +45,7 @@ class HomeController extends GetxController {
   StreamSubscription<void>? _shakeSub;
   StreamSubscription<GyroscopeEvent>? _gyroSub;
   bool _sensorsReady = false;
+  Timer? _clockTimer;
 
   @override
   void onInit() {
@@ -56,6 +58,7 @@ class HomeController extends GetxController {
     loadAppliances();
     _loadLatestToken();
     _loadTariffPlan();
+    _startClock();
   }
 
   @override
@@ -63,7 +66,14 @@ class HomeController extends GetxController {
     tokenCtrl.dispose();
     pauseSensors();
     _sensors.dispose();
+    _clockTimer?.cancel();
     super.onClose();
+  }
+
+  void _startClock() {
+    _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      now.value = DateTime.now();
+    });
   }
 
   // ── Sensor init ───────────────────────────────────────────────────────────
@@ -219,13 +229,29 @@ class HomeController extends GetxController {
     return available / effectiveRatePerKwh;
   }
 
-  double get estimatedDays {
+  double get estimatedTotalDays {
     if (totalDailyKwh <= 0 || tokenKwh <= 0) return 0;
     return tokenKwh / totalDailyKwh;
   }
 
+  double get remainingDays {
+    if (estimatedTotalDays <= 0) return 0;
+    final start = DateTime(
+      tokenDate.value.year,
+      tokenDate.value.month,
+      tokenDate.value.day,
+    );
+    final minutesElapsed =
+        now.value.difference(start).inMinutes.toDouble().clamp(0, double.infinity);
+    final elapsedDays = minutesElapsed / (24 * 60);
+    final remaining = estimatedTotalDays - elapsedDays;
+    return remaining > 0 ? remaining : 0;
+  }
+
   String get estimatedDurationLabel {
-    return _formatDuration(estimatedDays);
+    if (estimatedTotalDays <= 0) return '';
+    if (remainingDays <= 0) return 'Expired';
+    return _formatDuration(remainingDays);
   }
 
   bool get isOverCapacity {
@@ -250,6 +276,7 @@ class HomeController extends GetxController {
       final cfg = tariffConfig;
       final token = TokenModel(
         date: tokenDateIso,
+        inputAt: DateTime.now().toIso8601String(),
         amountIdr: amount,
         planCode: cfg.planCode,
         ratePerKwh: cfg.ratePerKwh,
@@ -286,7 +313,7 @@ class HomeController extends GetxController {
   }
 
   Future<void> _syncAutoReminder() async {
-    if (estimatedDays <= 0) return;
+    if (estimatedTotalDays <= 0) return;
 
     final now = DateTime.now();
     final start = DateTime(
@@ -296,8 +323,9 @@ class HomeController extends GetxController {
       now.hour,
       now.minute,
     );
-    final totalMinutes = (estimatedDays * 24 * 60).round();
+    final totalMinutes = (estimatedTotalDays * 24 * 60).round();
     final end = start.add(Duration(minutes: totalMinutes));
+    if (end.isBefore(now)) return;
 
     await _session.setReminderTime(end.hour, end.minute);
 

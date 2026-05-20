@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../utils/currency_converter.dart';
+import '../../../services/exchange_rate_service.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
 import '../controllers/analytics_controller.dart';
 
@@ -56,6 +56,8 @@ class AnalyticsView extends GetView<AnalyticsController> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildTokenCard(context),
+                const SizedBox(height: 16),
+                _buildTokenLog(),
                 const SizedBox(height: 16),
                 _buildUsageCard(),
                 if (controller.isOverCapacity) ...[
@@ -210,6 +212,81 @@ class AnalyticsView extends GetView<AnalyticsController> {
     );
   }
 
+  Widget _buildTokenLog() {
+    return Obx(() {
+      final items = controller.tokens.take(6).toList();
+      if (items.isEmpty) return const SizedBox.shrink();
+
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.surfaceLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.history, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                const Text(
+                  'Token Log',
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...items.map((token) {
+              final inputAt = _formatInputAt(token.inputAt, token.date);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _formatCurrency(token.amountIdr),
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Token date: ${_formatTokenDate(token.date)}',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      inputAt,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      );
+    });
+  }
+
   Widget _buildCapacityWarning() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -361,122 +438,181 @@ class AnalyticsView extends GetView<AnalyticsController> {
   }
 
   void _showCurrencySheet(BuildContext context, double idrAmount) {
-    var selected = CurrencyConverter.currencies.first;
-    final converted = CurrencyConverter.fromIDR(idrAmount);
+    final exchange = Get.find<ExchangeRateService>();
+    var currencies = <String>[];
+    var selected = '';
+    var rates = <String, double>{};
+    var isRateLoading = true;
+    var rateError = '';
+    void Function(void Function())? sheetSetState;
+    var isSheetOpen = true;
 
-    Get.bottomSheet(
+    Future<void> loadSheetData() async {
+      final selectedList = await exchange.getSelectedCurrencies();
+      final defaultCode = await exchange.getDefaultCurrency();
+      final nextCurrencies =
+          selectedList.isNotEmpty ? selectedList : ['USD', 'EUR', 'GBP'];
+      final nextSelected = nextCurrencies.contains(defaultCode)
+          ? defaultCode
+          : nextCurrencies.first;
+
+      if (isSheetOpen && (Get.isBottomSheetOpen ?? false)) {
+        sheetSetState?.call(() {
+          currencies = nextCurrencies;
+          selected = nextSelected;
+        });
+      }
+
+      var fetchedRates = await exchange.getRates('idr');
+      if (fetchedRates.isEmpty) {
+        fetchedRates = await exchange.getRates('idr', forceRefresh: true);
+      }
+      if (isSheetOpen && (Get.isBottomSheetOpen ?? false)) {
+        sheetSetState?.call(() {
+          rates = fetchedRates;
+          isRateLoading = false;
+          rateError = exchange.lastError ?? '';
+        });
+      }
+    }
+
+    final sheet = Get.bottomSheet(
       StatefulBuilder(
-        builder: (context, setState) => Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.currency_exchange, color: AppColors.primary),
-                  const SizedBox(width: 10),
-                  const Text('Token Conversion',
-                      style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: const Icon(Icons.close,
-                        color: AppColors.textSecondary, size: 20),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Base: ${_formatCurrency(idrAmount)} IDR',
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 12),
-              ),
-              const Divider(color: AppColors.surfaceLight, height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Convert to:',
-                      style: TextStyle(color: AppColors.textPrimary)),
-                  DropdownButton<String>(
-                    value: selected,
-                    dropdownColor: AppColors.surfaceLight,
-                    underline: const SizedBox(),
-                    icon: const Icon(Icons.arrow_drop_down,
+        builder: (context, setState) {
+          sheetSetState = setState;
+          final list = currencies.isNotEmpty
+              ? currencies
+              : ['USD', 'EUR', 'GBP'];
+          final active = selected.isNotEmpty
+              ? selected
+              : (list.contains('USD') ? 'USD' : list.first);
+          final rate = rates[active] ?? 0;
+          final hasRate = rate > 0;
+          final converted = idrAmount * rate;
+
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.currency_exchange,
                         color: AppColors.primary),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          selected = newValue;
-                        });
-                      }
-                    },
-                    items: CurrencyConverter.currencies
-                        .map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value,
-                            style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold)),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(
-                        CurrencyConverter.symbols[selected]!,
-                        style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(selected,
-                          style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 11,
-                              letterSpacing: 1)),
-                      Text(
-                        CurrencyConverter.format(
-                            selected, converted[selected] ?? 0),
-                        style: const TextStyle(
+                    const SizedBox(width: 10),
+                    const Text('Token Conversion',
+                        style: TextStyle(
                             color: AppColors.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Get.back(),
+                      child: const Icon(Icons.close,
+                          color: AppColors.textSecondary, size: 20),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Base: ${_formatCurrency(idrAmount)} IDR',
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12),
+                ),
+                const Divider(color: AppColors.surfaceLight, height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Convert to:',
+                        style: TextStyle(color: AppColors.textPrimary)),
+                    DropdownButton<String>(
+                      value: active,
+                      dropdownColor: AppColors.surfaceLight,
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.arrow_drop_down,
+                          color: AppColors.primary),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            selected = newValue;
+                          });
+                        }
+                      },
+                      items: list
+                          .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value,
+                              style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+                      child: Center(
+                        child: Text(
+                          active,
+                          style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(active,
+                            style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                                letterSpacing: 1)),
+                        Text(
+                          hasRate
+                              ? exchange.format(active, converted)
+                              : (isRateLoading
+                                  ? 'Loading rates...'
+                                : (rateError.isNotEmpty
+                                  ? rateError
+                                  : 'Rate unavailable')),
+                          style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
+
+    loadSheetData();
+    sheet.whenComplete(() {
+      isSheetOpen = false;
+    });
   }
 
   void _goToHome() {
@@ -502,4 +638,24 @@ String _formatCurrency(double amount) {
     symbol: 'Rp ',
     decimalDigits: 0,
   ).format(amount);
+}
+
+String _formatTokenDate(String value) {
+  try {
+    return DateFormat('EEE, d MMM yyyy').format(DateTime.parse(value));
+  } catch (_) {
+    return value;
+  }
+}
+
+String _formatInputAt(String? value, String fallbackDate) {
+  if (value == null || value.isEmpty) {
+    return _formatTokenDate(fallbackDate);
+  }
+  try {
+    final parsed = DateTime.parse(value);
+    return DateFormat('d MMM yyyy • HH:mm').format(parsed);
+  } catch (_) {
+    return value;
+  }
 }

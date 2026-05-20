@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Manages session tokens using flutter_secure_storage (encrypted on-device).
@@ -20,6 +21,10 @@ class SessionService {
   static const _keyTariffIncludeFixedFee = 'tariff_include_fixed_fee';
   static const _keyMeterVa = 'meter_va';
   static const _keyTokenAmount = 'token_amount';
+  static const _keyCurrencySelected = 'currency_selected';
+  static const _keyCurrencyDefault = 'currency_default';
+  static const _keyCurrencyRatesJson = 'currency_rates_json';
+  static const _keyCurrencyListJson = 'currency_list_json';
 
   final _storage = const FlutterSecureStorage();
 
@@ -194,6 +199,118 @@ class SessionService {
     return int.tryParse(val ?? '') ?? 0;
   }
 
+  Future<void> setSelectedCurrencies(List<String> codes) async {
+    final normalized = codes.map((e) => e.toUpperCase()).toList();
+    await _storage.write(
+      key: _keyCurrencySelected,
+      value: jsonEncode(normalized),
+    );
+  }
+
+  Future<List<String>> getSelectedCurrencies() async {
+    final val = await _storage.read(key: _keyCurrencySelected);
+    if (val == null || val.isEmpty) {
+      return ['USD', 'EUR', 'GBP'];
+    }
+    final decoded = jsonDecode(val);
+    if (decoded is! List) return ['USD', 'EUR', 'GBP'];
+    return decoded.map((e) => e.toString().toUpperCase()).toList();
+  }
+
+  Future<void> setDefaultCurrency(String code) async {
+    await _storage.write(
+      key: _keyCurrencyDefault,
+      value: code.toUpperCase(),
+    );
+  }
+
+  Future<String> getDefaultCurrency() async {
+    final val = await _storage.read(key: _keyCurrencyDefault);
+    return val?.toUpperCase() ?? 'USD';
+  }
+
+  Future<void> setRatesCache(
+    String base,
+    Map<String, double> rates,
+    DateTime fetchedAt,
+  ) async {
+    final payload = {
+      'base': base.toLowerCase(),
+      'fetchedAt': fetchedAt.toIso8601String(),
+      'rates': rates,
+    };
+    await _storage.write(
+      key: _keyCurrencyRatesJson,
+      value: jsonEncode(payload),
+    );
+  }
+
+  Future<_RatesCache?> getRatesCache(String base) async {
+    final val = await _storage.read(key: _keyCurrencyRatesJson);
+    if (val == null || val.isEmpty) return null;
+    final decoded = jsonDecode(val);
+    if (decoded is! Map) return null;
+
+    final cachedBase = decoded['base']?.toString();
+    if (cachedBase == null || cachedBase != base.toLowerCase()) {
+      return null;
+    }
+
+    final fetchedAt = DateTime.tryParse(decoded['fetchedAt']?.toString() ?? '');
+    if (fetchedAt == null) return null;
+
+    final rawRates = decoded['rates'];
+    if (rawRates is! Map) return null;
+
+    final rates = <String, double>{};
+    rawRates.forEach((key, value) {
+      final numValue = value is num ? value : num.tryParse(value.toString());
+      if (numValue != null) {
+        rates[key.toString().toUpperCase()] = numValue.toDouble();
+      }
+    });
+
+    return _RatesCache(rates, fetchedAt);
+  }
+
+  Future<void> clearRatesCache() async {
+    await _storage.delete(key: _keyCurrencyRatesJson);
+  }
+
+  Future<void> setCurrencyListCache(
+    List<String> codes,
+    DateTime fetchedAt,
+  ) async {
+    final payload = {
+      'fetchedAt': fetchedAt.toIso8601String(),
+      'codes': codes.map((e) => e.toUpperCase()).toList(),
+    };
+    await _storage.write(
+      key: _keyCurrencyListJson,
+      value: jsonEncode(payload),
+    );
+  }
+
+  Future<_CurrencyListCache?> getCurrencyListCache() async {
+    final val = await _storage.read(key: _keyCurrencyListJson);
+    if (val == null || val.isEmpty) return null;
+    final decoded = jsonDecode(val);
+    if (decoded is! Map) return null;
+
+    final fetchedAt = DateTime.tryParse(decoded['fetchedAt']?.toString() ?? '');
+    if (fetchedAt == null) return null;
+
+    final rawCodes = decoded['codes'];
+    if (rawCodes is! List) return null;
+
+    final codes = rawCodes.map((e) => e.toString().toUpperCase()).toList();
+    return _CurrencyListCache(codes, fetchedAt);
+  }
+
+  Future<void> clearCurrencyListCache() async {
+    await _storage.delete(key: _keyCurrencyListJson);
+  }
+
   Future<void> clearSession() async {
     await _storage.delete(key: _keySessionToken);
     final bio = await isBiometricEnabled();
@@ -206,4 +323,18 @@ class SessionService {
     final ts = DateTime.now().millisecondsSinceEpoch;
     return '$username:$ts';
   }
+}
+
+class _RatesCache {
+  final Map<String, double> rates;
+  final DateTime fetchedAt;
+
+  const _RatesCache(this.rates, this.fetchedAt);
+}
+
+class _CurrencyListCache {
+  final List<String> codes;
+  final DateTime fetchedAt;
+
+  const _CurrencyListCache(this.codes, this.fetchedAt);
 }

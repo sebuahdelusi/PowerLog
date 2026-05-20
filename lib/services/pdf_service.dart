@@ -13,25 +13,34 @@ class PdfService {
     List<LogModel> logs,
     List<ApplianceModel> appliances,
     double ratePerKwh,
+    {
+      String currencyCode = 'IDR',
+      double currencyRate = 1.0,
+    }
   ) async {
     final pdf = pw.Document();
 
-    final currencyFormat = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
+    final normalizedRate = currencyRate > 0 ? currencyRate : 1.0;
+    final normalizedCode = currencyCode.toUpperCase();
+    final currencyFormat = normalizedCode == 'IDR'
+        ? NumberFormat.currency(
+            locale: 'id_ID',
+            symbol: 'Rp ',
+            decimalDigits: 0,
+          )
+        : NumberFormat.simpleCurrency(name: normalizedCode);
 
     // Calculate totals
     final totals = _calculateReportTotals(logs, appliances, ratePerKwh);
     final totalLoggedKwh = totals.loggedKwh;
-    final totalLoggedCost = totals.loggedCost;
+    final totalLoggedCost = totals.loggedCost * normalizedRate;
     double dailyApplianceKwh = appliances.fold(
       0.0,
       (sum, item) => sum + item.dailyKwh,
     );
     double monthlyPredictedKwh = dailyApplianceKwh * 30;
-    double monthlyPredictedCost = monthlyPredictedKwh * ratePerKwh;
+    double monthlyPredictedCost =
+        (monthlyPredictedKwh * ratePerKwh) * normalizedRate;
 
     pdf.addPage(
       pw.MultiPage(

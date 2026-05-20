@@ -47,8 +47,7 @@ class _ProfileCard extends GetView<ProfileController> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -64,82 +63,103 @@ class _ProfileCard extends GetView<ProfileController> {
             child: const Icon(Icons.person, size: 44, color: AppColors.primary),
           ),
           const SizedBox(height: 14),
-          Obx(() => Text(
-                controller.username.value,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              )),
+          Obx(
+            () => Text(
+              controller.username.value,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           const SizedBox(height: 4),
           const Text(
             'PowerLog User',
-            style:
-                TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 20),
-          Obx(() => Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed:
-                            controller.isExporting.value ? null : controller.exportPdf,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+          Obx(
+            () => Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: controller.isExporting.value
+                          ? null
+                          : controller.exportPdf,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        icon: controller.isExporting.value
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    color: Colors.black, strokeWidth: 2))
-                            : const Icon(Icons.picture_as_pdf, size: 18),
-                        label: Text(
-                          controller.isExporting.value ? 'Generating...' : 'Export PDF',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      icon: controller.isExporting.value
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.black,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.picture_as_pdf, size: 18),
+                      label: Text(
+                        controller.isExporting.value
+                            ? 'Generating...'
+                            : 'Export PDF',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: controller.isExportingCsv.value
-                            ? null
-                            : controller.exportCsv,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.secondary,
-                          side: BorderSide(
-                              color: AppColors.secondary.withValues(alpha: 0.7)),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: controller.isExportingCsv.value
+                          ? null
+                          : controller.exportCsv,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.secondary,
+                        side: BorderSide(
+                          color: AppColors.secondary.withValues(alpha: 0.7),
                         ),
-                        icon: controller.isExportingCsv.value
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    color: AppColors.secondary, strokeWidth: 2))
-                            : const Icon(Icons.table_view, size: 18),
-                        label: Text(
-                          controller.isExportingCsv.value ? 'Generating...' : 'Export CSV',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: controller.isExportingCsv.value
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: AppColors.secondary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.table_view, size: 18),
+                      label: Text(
+                        controller.isExportingCsv.value
+                            ? 'Generating...'
+                            : 'Export CSV',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
                       ),
                     ),
                   ),
-                ],
-              )),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -156,7 +176,11 @@ class _AchievementsSection extends GetView<ProfileController> {
       children: [
         Row(
           children: [
-            const Icon(Icons.emoji_events_outlined, color: AppColors.accent, size: 18),
+            const Icon(
+              Icons.emoji_events_outlined,
+              color: AppColors.accent,
+              size: 18,
+            ),
             const SizedBox(width: 8),
             const Text(
               'Eco-Achievements',
@@ -172,27 +196,150 @@ class _AchievementsSection extends GetView<ProfileController> {
         Row(
           children: [
             Expanded(
-              child: Obx(() => _buildBadge(
-                title: '7-Day Streak',
-                subtitle: 'Logged 7 days in a row',
-                icon: Icons.local_fire_department,
-                isUnlocked: controller.has7DayStreak.value,
-                color: Colors.orangeAccent,
-              )),
+              child: Obx(
+                () => _buildBadge(
+                  title: '7-Day Streak',
+                  subtitle: 'Logged 7 days in a row',
+                  icon: Icons.local_fire_department,
+                  isUnlocked: controller.has7DayStreak.value,
+                  color: Colors.orangeAccent,
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Obx(() => _buildBadge(
-                title: 'Eco Saver',
-                subtitle: 'Last log < 5 kWh',
-                icon: Icons.eco,
-                isUnlocked: controller.isEcoSaver.value,
-                color: Colors.greenAccent,
-              )),
+              child: Obx(
+                () => _buildBadge(
+                  title: 'Eco Saver',
+                  subtitle: 'Last log < 5 kWh',
+                  icon: Icons.eco,
+                  isUnlocked: controller.isEcoSaver.value,
+                  color: Colors.greenAccent,
+                ),
+              ),
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        // Beautifully styled container for simulating scenarios to test achievements
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.science_outlined,
+                    color: AppColors.primary,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Achievement Simulator (Testing)',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Simulate electricity usage logs to verify the badge unlocking mechanics immediately:',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(height: 10),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildSimChip(
+                      label: 'Eco Saver',
+                      icon: Icons.eco,
+                      color: Colors.greenAccent,
+                      onTap: () => controller.seedMockLogs('eco_saver'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildSimChip(
+                      label: '7-Day Streak',
+                      icon: Icons.local_fire_department,
+                      color: Colors.orangeAccent,
+                      onTap: () => controller.seedMockLogs('streak'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildSimChip(
+                      label: 'Heavy Log',
+                      icon: Icons.bolt,
+                      color: Colors.redAccent,
+                      onTap: () => controller.seedMockLogs('heavy'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildSimChip(
+                      label: 'Reset',
+                      icon: Icons.refresh,
+                      color: AppColors.textSecondary,
+                      onTap: () => controller.seedMockLogs('clear'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildSimChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: color.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -209,21 +356,27 @@ class _AchievementsSection extends GetView<ProfileController> {
         color: isUnlocked ? color.withValues(alpha: 0.1) : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isUnlocked ? color.withValues(alpha: 0.4) : AppColors.surfaceLight,
+          color: isUnlocked
+              ? color.withValues(alpha: 0.4)
+              : AppColors.surfaceLight,
         ),
       ),
       child: Column(
         children: [
           Icon(
             icon,
-            color: isUnlocked ? color : AppColors.textSecondary.withValues(alpha: 0.3),
+            color: isUnlocked
+                ? color
+                : AppColors.textSecondary.withValues(alpha: 0.3),
             size: 32,
           ),
           const SizedBox(height: 8),
           Text(
             title,
             style: TextStyle(
-              color: isUnlocked ? AppColors.textPrimary : AppColors.textSecondary,
+              color: isUnlocked
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
@@ -233,7 +386,9 @@ class _AchievementsSection extends GetView<ProfileController> {
             subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textSecondary.withValues(alpha: isUnlocked ? 0.8 : 0.4),
+              color: AppColors.textSecondary.withValues(
+                alpha: isUnlocked ? 0.8 : 0.4,
+              ),
               fontSize: 10,
             ),
           ),
@@ -254,7 +409,11 @@ class _SettingsSection extends GetView<ProfileController> {
         children: [
           Row(
             children: [
-              const Icon(Icons.settings_outlined, color: AppColors.primary, size: 18),
+              const Icon(
+                Icons.settings_outlined,
+                color: AppColors.primary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'Settings',
@@ -271,7 +430,9 @@ class _SettingsSection extends GetView<ProfileController> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.15),
+              ),
             ),
             child: Column(
               children: [
@@ -279,41 +440,86 @@ class _SettingsSection extends GetView<ProfileController> {
                   SwitchListTile(
                     value: controller.isBiometricEnabled.value,
                     onChanged: controller.toggleBiometric,
-                    title: const Text('Biometric Login',
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                    subtitle: const Text('Use fingerprint/face to login after logout',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                    secondary: const Icon(Icons.fingerprint, color: AppColors.primary),
+                    title: const Text(
+                      'Biometric Login',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Use fingerprint/face to login after logout',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    secondary: const Icon(
+                      Icons.fingerprint,
+                      color: AppColors.primary,
+                    ),
                     activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                     activeThumbColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   const Divider(color: AppColors.surfaceLight, height: 1),
                 ],
                 SwitchListTile(
                   value: controller.isNotificationEnabled.value,
                   onChanged: controller.toggleNotification,
-                  title: const Text('Auto Reminder (Token-based)',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: Text(controller.autoReminderSubtitle,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  secondary: const Icon(Icons.notifications_active_outlined, color: AppColors.primary),
+                  title: const Text(
+                    'Auto Reminder (Token-based)',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    controller.autoReminderSubtitle,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  secondary: const Icon(
+                    Icons.notifications_active_outlined,
+                    color: AppColors.primary,
+                  ),
                   activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                   activeThumbColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 const Divider(color: AppColors.surfaceLight, height: 1),
                 SwitchListTile(
                   value: controller.isCustomReminderEnabled.value,
                   onChanged: controller.toggleCustomReminder,
-                  title: const Text('Custom Reminder',
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                  subtitle: const Text('Pick your own date and time',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  secondary: const Icon(Icons.event_available, color: AppColors.primary),
+                  title: const Text(
+                    'Custom Reminder',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Pick your own date and time',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  secondary: const Icon(
+                    Icons.event_available,
+                    color: AppColors.primary,
+                  ),
                   activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                   activeThumbColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 if (controller.isCustomReminderEnabled.value) ...[
                   const Divider(color: AppColors.surfaceLight, height: 1),
@@ -323,7 +529,9 @@ class _SettingsSection extends GetView<ProfileController> {
                       final pickedDate = await showDatePicker(
                         context: context,
                         initialDate: initial,
-                        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 1),
+                        ),
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
                       if (pickedDate == null) return;
@@ -343,20 +551,305 @@ class _SettingsSection extends GetView<ProfileController> {
                       );
                       await controller.setCustomReminderDateTime(next);
                     },
-                    title: const Text('Custom Reminder Time',
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                    subtitle: Text(controller.customReminderLabel,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                    leading: const Icon(Icons.access_time, color: AppColors.primary),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    title: const Text(
+                      'Custom Reminder Time',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      controller.customReminderLabel,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    leading: const Icon(
+                      Icons.access_time,
+                      color: AppColors.primary,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ],
+                const Divider(color: AppColors.surfaceLight, height: 1),
+                ListTile(
+                  onTap: () => _openCurrencyPicker(context),
+                  title: const Text(
+                    'Currency Preferences',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Obx(() {
+                    if (controller.isCurrencyLoading.value) {
+                      return const Text(
+                        'Loading currencies...',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      );
+                    }
+                    final selected = controller.selectedCurrencies;
+                    if (selected.isEmpty) {
+                      return const Text(
+                        'No currencies selected',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      );
+                    }
+                    final preview = selected.take(4).join(', ');
+                    final suffix = selected.length > 4 ? ' +' : '';
+                    return Text(
+                      'Selected: $preview$suffix',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    );
+                  }),
+                  leading: const Icon(
+                    Icons.currency_exchange,
+                    color: AppColors.primary,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                const Divider(color: AppColors.surfaceLight, height: 1),
+                ListTile(
+                  title: const Text(
+                    'Default Currency',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Used for conversion & PDF export',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  leading: const Icon(
+                    Icons.payments_outlined,
+                    color: AppColors.primary,
+                  ),
+                  trailing: Obx(() {
+                    final options = controller.selectedCurrencies;
+                    final value = controller.defaultCurrency.value;
+                    if (options.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return DropdownButton<String>(
+                      value: options.contains(value) ? value : options.first,
+                      dropdownColor: AppColors.surfaceLight,
+                      underline: const SizedBox(),
+                      icon: const Icon(
+                        Icons.arrow_drop_down,
+                        color: AppColors.primary,
+                      ),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          controller.setDefaultCurrency(newValue);
+                        }
+                      },
+                      items: options
+                          .map(
+                            (code) => DropdownMenuItem(
+                              value: code,
+                              child: Text(
+                                code,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  }),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ],
             ),
           ),
         ],
       );
     });
+  }
+
+  void _openCurrencyPicker(BuildContext context) async {
+    final searchCtrl = TextEditingController();
+    var query = '';
+
+    controller.refreshCurrencyOptions();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return SafeArea(
+              top: false,
+              child: Container(
+                height: 520,
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.currency_exchange,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Select Currencies',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => Navigator.of(modalCtx).pop(),
+                          child: const Icon(
+                            Icons.close,
+                            color: AppColors.textSecondary,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: searchCtrl,
+                      onChanged: (value) {
+                        setState(() {
+                          query = value.trim().toUpperCase();
+                        });
+                      },
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Search currency code (e.g., USD)',
+                        hintStyle: const TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.surfaceLight,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Obx(() {
+                        final selected = controller.selectedCurrencies;
+                        final options = controller.currencyOptions.isEmpty
+                            ? selected
+                            : controller.currencyOptions;
+                        final filtered =
+                            (query.isEmpty
+                                  ? options
+                                  : options
+                                        .where(
+                                          (code) => code.contains(
+                                            query.toUpperCase(),
+                                          ),
+                                        )
+                                        .toList())
+                              ..sort((a, b) {
+                                final aSelected = selected.contains(a);
+                                final bSelected = selected.contains(b);
+                                if (aSelected != bSelected) {
+                                  return aSelected ? -1 : 1;
+                                }
+                                return a.compareTo(b);
+                              });
+
+                        if (controller.isCurrencyLoading.value) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          );
+                        }
+                        if (options.isEmpty) {
+                          final error = controller.currencyError.value;
+                          return Center(
+                            child: Text(
+                              error == null || error.isEmpty
+                                  ? 'Currency list unavailable'
+                                  : error,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final code = filtered[index];
+                            final isChecked = selected.contains(code);
+                            return CheckboxListTile(
+                              value: isChecked,
+                              onChanged: (val) {
+                                controller.toggleCurrencySelection(
+                                  code,
+                                  val ?? false,
+                                );
+                                setState(() {});
+                              },
+                              title: Text(
+                                code,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              activeColor: AppColors.primary,
+                              checkColor: Colors.black,
+                              controlAffinity: ListTileControlAffinity.leading,
+                            );
+                          },
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchCtrl.dispose();
   }
 }
 
@@ -374,8 +867,11 @@ class _CompassSection extends GetView<ProfileController> {
         children: [
           Row(
             children: [
-              const Icon(Icons.explore_outlined,
-                  color: AppColors.primary, size: 18),
+              const Icon(
+                Icons.explore_outlined,
+                color: AppColors.primary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'Compass',
@@ -406,11 +902,13 @@ class _CompassSection extends GetView<ProfileController> {
                   ),
                   child: Transform.rotate(
                     angle: (heading * 3.141592653589793) / 180,
-                    child: Icon(Icons.navigation,
-                        color: available
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                        size: 26),
+                    child: Icon(
+                      Icons.navigation,
+                      color: available
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      size: 26,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -418,18 +916,23 @@ class _CompassSection extends GetView<ProfileController> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Heading',
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 11)),
+                      const Text(
+                        'Heading',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         available
                             ? '${heading.toStringAsFixed(0)}°'
                             : 'Compass unavailable',
                         style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold),
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -456,7 +959,11 @@ class _TimezoneSection extends GetView<ProfileController> {
           children: [
             Row(
               children: [
-                const Icon(Icons.access_time, color: AppColors.primary, size: 18),
+                const Icon(
+                  Icons.access_time,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'World Clock',
@@ -468,34 +975,43 @@ class _TimezoneSection extends GetView<ProfileController> {
                 ),
               ],
             ),
-            Obx(() => DropdownButton<int>(
-              value: controller.selectedTimezoneIndex.value,
-              dropdownColor: AppColors.surfaceLight,
-              underline: const SizedBox(),
-              icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
-              onChanged: (int? newIndex) {
-                if (newIndex != null) {
-                  controller.setTimezoneIndex(newIndex);
-                }
-              },
-              items: List.generate(
-                controller.timezones.length,
-                (index) => DropdownMenuItem(
-                  value: index,
-                  child: Text(
-                    controller.timezones[index].code,
-                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+            Obx(
+              () => DropdownButton<int>(
+                value: controller.selectedTimezoneIndex.value,
+                dropdownColor: AppColors.surfaceLight,
+                underline: const SizedBox(),
+                icon: const Icon(
+                  Icons.arrow_drop_down,
+                  color: AppColors.primary,
+                ),
+                onChanged: (int? newIndex) {
+                  if (newIndex != null) {
+                    controller.setTimezoneIndex(newIndex);
+                  }
+                },
+                items: List.generate(
+                  controller.timezones.length,
+                  (index) => DropdownMenuItem(
+                    value: index,
+                    child: Text(
+                      controller.timezones[index].code,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            )),
+            ),
           ],
         ),
         const SizedBox(height: 12),
         Obx(() {
           // Rebuild every tick
           controller.currentTime.value; // subscribe
-          final tz = controller.timezones[controller.selectedTimezoneIndex.value];
+          final tz =
+              controller.timezones[controller.selectedTimezoneIndex.value];
           return _TzCard(tz: tz);
         }),
       ],
@@ -558,7 +1074,9 @@ class _TzCard extends GetView<ProfileController> {
                 Text(
                   tz.label,
                   style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 11),
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -578,7 +1096,9 @@ class _TzCard extends GetView<ProfileController> {
               Text(
                 date,
                 style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 11),
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),

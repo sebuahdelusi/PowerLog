@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:powerlog/data/models/appliance_model.dart';
@@ -14,6 +15,9 @@ class AnalyticsController extends GetxController {
   final appliances = <ApplianceModel>[].obs;
   final isLoading = false.obs;
   final latestToken = Rxn<TokenModel>();
+  final tokens = <TokenModel>[].obs;
+  final now = DateTime.now().obs;
+  Timer? _clockTimer;
 
   static const Map<String, int> _planVaMin = {
     'R1_900': 900,
@@ -41,12 +45,26 @@ class AnalyticsController extends GetxController {
   void onInit() {
     super.onInit();
     loadData();
+    _startClock();
+  }
+
+  @override
+  void onClose() {
+    _clockTimer?.cancel();
+    super.onClose();
+  }
+
+  void _startClock() {
+    _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      now.value = DateTime.now();
+    });
   }
 
   Future<void> loadData() async {
     isLoading.value = true;
     appliances.value = await _applianceRepo.fetchAllAppliances();
     latestToken.value = await _tokenRepo.fetchLatestToken();
+    tokens.value = await _tokenRepo.fetchAllTokens();
     isLoading.value = false;
   }
 
@@ -99,9 +117,9 @@ class AnalyticsController extends GetxController {
 
   DateTime? get estimatedEndDateTime {
     if (latestToken.value == null) return null;
-    if (estimatedDays <= 0) return null;
-    final start = _parseDate(latestToken.value!.date);
-    final minutes = (estimatedDays * 24 * 60).round();
+    if (estimatedTotalDays <= 0) return null;
+    final start = _parseStartDate(latestToken.value!);
+    final minutes = (estimatedTotalDays * 24 * 60).round();
     return start.add(Duration(minutes: minutes));
   }
 
@@ -128,13 +146,27 @@ class AnalyticsController extends GetxController {
     return available / effectiveRatePerKwh;
   }
 
-  double get estimatedDays {
+  double get estimatedTotalDays {
     if (totalDailyKwh <= 0 || tokenKwh <= 0) return 0;
     return tokenKwh / totalDailyKwh;
   }
 
+  double get remainingDays {
+    if (estimatedTotalDays <= 0) return 0;
+    final token = latestToken.value;
+    if (token == null) return 0;
+    final start = _parseStartDate(token);
+    final minutesElapsed =
+        now.value.difference(start).inMinutes.toDouble().clamp(0, double.infinity);
+    final elapsedDays = minutesElapsed / (24 * 60);
+    final remaining = estimatedTotalDays - elapsedDays;
+    return remaining > 0 ? remaining : 0;
+  }
+
   String get estimatedDurationLabel {
-    return _formatDuration(estimatedDays);
+    if (estimatedTotalDays <= 0) return '';
+    if (remainingDays <= 0) return 'Expired';
+    return _formatDuration(remainingDays);
   }
 
   bool get isOverCapacity {
@@ -153,6 +185,15 @@ class AnalyticsController extends GetxController {
     } catch (_) {
       return DateTime.now();
     }
+  }
+
+  DateTime _parseStartDate(TokenModel token) {
+    if (token.inputAt != null && token.inputAt!.isNotEmpty) {
+      try {
+        return DateTime.parse(token.inputAt!);
+      } catch (_) {}
+    }
+    return _parseDate(token.date);
   }
 
   String _formatDate(String value) {

@@ -1,6 +1,7 @@
 class TokenModel {
   final int? id;
   final String date; // ISO-8601 date string: yyyy-MM-dd
+  final String? inputAt; // ISO-8601 datetime string
   final double amountIdr;
   final String planCode;
   final double ratePerKwh;
@@ -12,6 +13,7 @@ class TokenModel {
   const TokenModel({
     this.id,
     required this.date,
+    this.inputAt,
     required this.amountIdr,
     required this.planCode,
     required this.ratePerKwh,
@@ -24,6 +26,7 @@ class TokenModel {
   Map<String, dynamic> toMap() => {
         'id': id,
         'token_date': date,
+      if (inputAt != null) 'input_at': inputAt,
         'amount_idr': amountIdr,
         'plan_code': planCode,
         'rate_per_kwh': ratePerKwh,
@@ -36,6 +39,7 @@ class TokenModel {
   factory TokenModel.fromMap(Map<String, dynamic> map) => TokenModel(
         id: map['id'] as int?,
         date: map['token_date'] as String,
+      inputAt: map['input_at'] as String?,
         amountIdr: (map['amount_idr'] as num).toDouble(),
         planCode: map['plan_code'] as String,
         ratePerKwh: (map['rate_per_kwh'] as num).toDouble(),
