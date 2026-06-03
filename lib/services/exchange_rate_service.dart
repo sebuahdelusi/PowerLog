@@ -122,7 +122,15 @@ class ExchangeRateService extends GetxService {
   /// If all fail, returns `null`.
   Future<T?> _fetchFirst<T>(Iterable<Future<T> Function()> futures) async {
     // Eagerly start all requests in parallel.
-    final fs = futures.map((fn) => fn().timeout(_requestTimeout).catchError((_) => null)).toList();
+    final fs = futures
+        .map((fn) async {
+          try {
+            return await fn().timeout(_requestTimeout);
+          } catch (_) {
+            return null;
+          }
+        })
+        .toList();
     // As they complete, return the first non-null value.
     for (final f in fs) {
       final value = await f;
