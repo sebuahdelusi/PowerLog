@@ -13,14 +13,19 @@ class ExchangeRateService extends GetxService {
     'https://latest.currency-api.pages.dev/v1/currencies',
   ];
   static const _cacheTtl = Duration(hours: 24);
+  static const _requestTimeout = Duration(seconds: 4);
 
   final _session = SessionService();
-  final _http = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+  final _http = HttpClient()..connectionTimeout = const Duration(seconds: 4);
   String? _lastError;
+
+  final defaultCurrency = 'IDR'.obs;
+  final _cachedRates = <String, double>{}.obs;
 
   String? get lastError => _lastError;
 
   Future<ExchangeRateService> init() async {
+    defaultCurrency.value = await _session.getDefaultCurrency();
     await _warmCache();
     return this;
   }
@@ -28,7 +33,8 @@ class ExchangeRateService extends GetxService {
   Future<void> _warmCache() async {
     try {
       await getAvailableCurrencies();
-      await getRates('idr');
+      final rates = await getRates('idr');
+      _cachedRates.assignAll(rates);
     } catch (_) {}
   }
 
@@ -44,29 +50,27 @@ class ExchangeRateService extends GetxService {
       await _session.clearCurrencyListCache();
     }
 
-    for (final baseUrl in _baseUrls) {
-      try {
+    // Try all URLs in parallel — whoever responds first wins.
+    final result = await _fetchFirst(
+      _baseUrls.map((baseUrl) => () async {
         final data = await _getJson('$baseUrl.json');
-        if (data is! Map<String, dynamic>) continue;
+        if (data is! Map<String, dynamic>) throw Exception('Not a map');
         if (!_looksLikeCurrencyList(data)) {
-          _lastError = 'Invalid currency list payload from $baseUrl';
-          continue;
+          throw Exception('Invalid currency list payload from $baseUrl');
         }
-
-        final codes =
-            data.keys
-                .map((e) => e.toUpperCase())
-                .where((c) => RegExp(r'^[A-Z]{3}$').hasMatch(c))
-                .toList()
-              ..sort();
-        if (codes.isEmpty) continue;
+        final codes = data.keys
+            .map((e) => e.toUpperCase())
+            .where((c) => RegExp(r'^[A-Z]{3}$').hasMatch(c))
+            .toList()
+          ..sort();
+        if (codes.isEmpty) throw Exception('Empty codes from $baseUrl');
         await _session.setCurrencyListCache(codes, DateTime.now());
         _lastError = null;
         return codes;
-      } catch (e) {
-        _lastError = 'Failed to load currency list from $baseUrl ($e)';
-      }
-    }
+      }),
+    );
+
+    if (result != null) return result;
     return cached?.codes ?? [];
   }
 
@@ -84,16 +88,16 @@ class ExchangeRateService extends GetxService {
       await _session.clearRatesCache();
     }
 
-    for (final baseUrl in _baseUrls) {
-      try {
+    // Try all URLs in parallel — whoever responds first wins.
+    final result = await _fetchFirst(
+      _baseUrls.map((baseUrl) => () async {
         final data = await _getJson('$baseUrl/$normalized.json');
-        if (data is! Map<String, dynamic>) continue;
+        if (data is! Map<String, dynamic>) throw Exception('Not a map');
 
         final raw = data[normalized];
-        if (raw is! Map<String, dynamic>) continue;
+        if (raw is! Map<String, dynamic>) throw Exception('No $normalized key');
         if (!_looksLikeRateMap(raw)) {
-          _lastError = 'Invalid rate payload from $baseUrl';
-          continue;
+          throw Exception('Invalid rate map from $baseUrl');
         }
 
         final rates = <String, double>{};
@@ -104,13 +108,27 @@ class ExchangeRateService extends GetxService {
         });
 
         await _session.setRatesCache(normalized, rates, DateTime.now());
+        _cachedRates.assignAll(rates);
         _lastError = null;
         return rates;
-      } catch (e) {
-        _lastError = 'Failed to load rates for $normalized from $baseUrl ($e)';
-      }
-    }
+      }),
+    );
+
+    if (result != null) return result;
     return cached?.rates ?? {};
+  }
+
+  /// Runs [futures] in parallel and returns the first that succeeds.
+  /// If all fail, returns `null`.
+  Future<T?> _fetchFirst<T>(Iterable<Future<T> Function()> futures) async {
+    // Eagerly start all requests in parallel.
+    final fs = futures.map((fn) => fn().timeout(_requestTimeout).catchError((_) => null)).toList();
+    // As they complete, return the first non-null value.
+    for (final f in fs) {
+      final value = await f;
+      if (value != null) return value;
+    }
+    return null;
   }
 
   Future<double?> getRate({required String from, required String to}) async {
@@ -130,8 +148,57 @@ class ExchangeRateService extends GetxService {
   }
 
   String format(String code, double amount) {
-    final formatter = NumberFormat.simpleCurrency(name: code.toUpperCase());
-    return formatter.format(amount);
+    final c = code.toUpperCase();
+    return NumberFormat.currency(
+      locale: _localeFor(c),
+      symbol: _currencySymbol(c),
+      decimalDigits: _currencyDecimals(c),
+    ).format(amount);
+  }
+
+  String _localeFor(String code) {
+    switch (code) {
+      case 'IDR': return 'id_ID';
+      case 'EUR': return 'de_DE';
+      case 'USD': return 'en_US';
+      case 'GBP': return 'en_GB';
+      case 'JPY': return 'ja_JP';
+      case 'CNY': return 'zh_CN';
+      case 'SGD': return 'en_SG';
+      case 'MYR': return 'ms_MY';
+      case 'THB': return 'th_TH';
+      default: return 'en_US';
+    }
+  }
+
+  String _currencySymbol(String code) {
+    const symbols = <String, String>{
+      'IDR': 'Rp ',
+      'EUR': '€',
+      'USD': '\$',
+      'GBP': '£',
+      'JPY': '¥',
+      'CNY': '¥',
+      'SGD': 'S\$',
+      'MYR': 'RM',
+      'THB': '฿',
+      'KRW': '₩',
+      'INR': '₹',
+      'AUD': 'A\$',
+      'CAD': 'C\$',
+      'CHF': 'CHF ',
+      'SAR': '﷼',
+      'BND': 'B\$',
+      'VND': '₫',
+    };
+    return symbols[code] ?? '\$$code ';
+  }
+
+  int _currencyDecimals(String code) {
+    const noDecimal = <String>{
+      'JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'BIF', 'DJF',
+    };
+    return noDecimal.contains(code) ? 0 : 2;
   }
 
   Future<List<String>> getSelectedCurrencies() {
@@ -146,8 +213,22 @@ class ExchangeRateService extends GetxService {
     return _session.getDefaultCurrency();
   }
 
-  Future<void> setDefaultCurrency(String code) {
-    return _session.setDefaultCurrency(code);
+  Future<void> setDefaultCurrency(String code) async {
+    await _session.setDefaultCurrency(code);
+    defaultCurrency.value = code.toUpperCase();
+  }
+
+  String formatIdrToDefault(double idrAmount) {
+    final activeCurrency = defaultCurrency.value;
+    if (activeCurrency == 'IDR') {
+      return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(idrAmount);
+    }
+    final rate = _cachedRates[activeCurrency] ?? 0.0;
+    if (rate == 0.0) {
+      return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(idrAmount);
+    }
+    final converted = idrAmount * rate;
+    return format(activeCurrency, converted);
   }
 
   bool _isStale(DateTime fetchedAt) {
@@ -158,11 +239,11 @@ class ExchangeRateService extends GetxService {
     final request = await _http.getUrl(Uri.parse(url));
     request.headers.set(HttpHeaders.acceptHeader, 'application/json');
     request.headers.set(HttpHeaders.userAgentHeader, 'PowerLog/1.0');
-    final response = await request.close().timeout(const Duration(seconds: 8));
+    final response = await request.close().timeout(_requestTimeout);
     final body = await response
         .transform(utf8.decoder)
         .join()
-        .timeout(const Duration(seconds: 8));
+        .timeout(_requestTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         'Failed to fetch exchange data (${response.statusCode}).',

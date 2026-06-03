@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
+import 'package:powerlog/utils/currency_names.dart' as currency_names;
 import '../../../services/exchange_rate_service.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
 import '../controllers/analytics_controller.dart';
@@ -536,8 +537,9 @@ class AnalyticsView extends GetView<AnalyticsController> {
                       underline: const SizedBox(),
                       icon: const Icon(Icons.arrow_drop_down,
                           color: AppColors.primary),
-                      onChanged: (String? newValue) {
+                      onChanged: (String? newValue) async {
                         if (newValue != null) {
+                          await exchange.setDefaultCurrency(newValue);
                           setState(() {
                             selected = newValue;
                           });
@@ -547,7 +549,7 @@ class AnalyticsView extends GetView<AnalyticsController> {
                           .map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value,
+                          child: Text(currency_names.CurrencyNames.display(value),
                               style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold)),
@@ -633,11 +635,7 @@ class AnalyticsView extends GetView<AnalyticsController> {
 }
 
 String _formatCurrency(double amount) {
-  return NumberFormat.currency(
-    locale: 'id_ID',
-    symbol: 'Rp ',
-    decimalDigits: 0,
-  ).format(amount);
+  return Get.find<ExchangeRateService>().formatIdrToDefault(amount);
 }
 
 String _formatTokenDate(String value) {

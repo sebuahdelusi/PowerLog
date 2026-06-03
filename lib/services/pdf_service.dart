@@ -22,13 +22,11 @@ class PdfService {
 
     final normalizedRate = currencyRate > 0 ? currencyRate : 1.0;
     final normalizedCode = currencyCode.toUpperCase();
-    final currencyFormat = normalizedCode == 'IDR'
-        ? NumberFormat.currency(
-            locale: 'id_ID',
-            symbol: 'Rp ',
-            decimalDigits: 0,
-          )
-        : NumberFormat.simpleCurrency(name: normalizedCode);
+    final currencyFormat = NumberFormat.currency(
+      locale: _localeFor(normalizedCode),
+      symbol: _currencySymbol(normalizedCode),
+      decimalDigits: _currencyDecimals(normalizedCode),
+    );
 
     // Calculate totals
     final totals = _calculateReportTotals(logs, appliances, ratePerKwh);
@@ -322,6 +320,62 @@ class PdfService {
         ),
       ],
     );
+  }
+
+  String _localeFor(String code) {
+    switch (code) {
+      case 'IDR':
+        return 'id_ID';
+      case 'EUR':
+        return 'de_DE';
+      case 'USD':
+        return 'en_US';
+      case 'GBP':
+        return 'en_GB';
+      case 'JPY':
+        return 'ja_JP';
+      case 'CNY':
+        return 'zh_CN';
+      case 'SGD':
+        return 'en_SG';
+      case 'MYR':
+        return 'ms_MY';
+      case 'THB':
+        return 'th_TH';
+      default:
+        return 'en_US';
+    }
+  }
+
+  String _currencySymbol(String code) {
+    const symbols = <String, String>{
+      'IDR': 'Rp ',
+      'EUR': '€',
+      'USD': '\$',
+      'GBP': '£',
+      'JPY': '¥',
+      'CNY': '¥',
+      'SGD': 'S\$',
+      'MYR': 'RM',
+      'THB': '฿',
+      'KRW': '₩',
+      'INR': '₹',
+      'AUD': 'A\$',
+      'CAD': 'C\$',
+      'CHF': 'CHF ',
+      'SAR': '﷼',
+      'BND': 'B\$',
+      'VND': '₫',
+    };
+    return symbols[code] ?? '\$$code ';
+  }
+
+  int _currencyDecimals(String code) {
+    // JPY, KRW, IDR, VND — zero decimal currencies
+    const noDecimal = <String>{
+      'JPY', 'KRW', 'IDR', 'VND', 'CLP', 'ISK', 'BIF', 'DJF',
+    };
+    return noDecimal.contains(code) ? 0 : 2;
   }
 
   _ReportTotals _calculateReportTotals(

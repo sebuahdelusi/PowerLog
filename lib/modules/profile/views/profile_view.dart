@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:powerlog/utils/timezone_converter.dart';
+import 'package:powerlog/utils/currency_names.dart' as currency_names;
 import '../../../app/theme/app_colors.dart';
 import '../controllers/profile_controller.dart';
 
@@ -535,6 +536,7 @@ class _SettingsSection extends GetView<ProfileController> {
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
                       if (pickedDate == null) return;
+                      if (!context.mounted) return;
 
                       final pickedTime = await showTimePicker(
                         context: context,
@@ -604,8 +606,8 @@ class _SettingsSection extends GetView<ProfileController> {
                         ),
                       );
                     }
-                    final preview = selected.take(4).join(', ');
-                    final suffix = selected.length > 4 ? ' +' : '';
+                    final preview = selected.take(4).map((c) => c).join(', ');
+                    final suffix = selected.length > 4 ? ' +${selected.length - 4} more' : '';
                     return Text(
                       'Selected: $preview$suffix',
                       style: const TextStyle(
@@ -666,7 +668,7 @@ class _SettingsSection extends GetView<ProfileController> {
                             (code) => DropdownMenuItem(
                               value: code,
                               child: Text(
-                                code,
+                                currency_names.CurrencyNames.display(code),
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
@@ -689,167 +691,188 @@ class _SettingsSection extends GetView<ProfileController> {
     });
   }
 
-  void _openCurrencyPicker(BuildContext context) async {
-    final searchCtrl = TextEditingController();
-    var query = '';
-
-    controller.refreshCurrencyOptions();
-
-    await showModalBottomSheet<void>(
+  void _openCurrencyPicker(BuildContext context) {
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (modalCtx) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return SafeArea(
-              top: false,
-              child: Container(
-                height: 520,
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.currency_exchange,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Select Currencies',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => Navigator.of(modalCtx).pop(),
-                          child: const Icon(
-                            Icons.close,
-                            color: AppColors.textSecondary,
-                            size: 20,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: searchCtrl,
-                      onChanged: (value) {
-                        setState(() {
-                          query = value.trim().toUpperCase();
-                        });
-                      },
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: InputDecoration(
-                        hintText: 'Search currency code (e.g., USD)',
-                        hintStyle: const TextStyle(
-                          color: AppColors.textSecondary,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.surfaceLight,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: Obx(() {
-                        final selected = controller.selectedCurrencies;
-                        final options = controller.currencyOptions.isEmpty
-                            ? selected
-                            : controller.currencyOptions;
-                        final filtered =
-                            (query.isEmpty
-                                  ? options
-                                  : options
-                                        .where(
-                                          (code) => code.contains(
-                                            query.toUpperCase(),
-                                          ),
-                                        )
-                                        .toList())
-                              ..sort((a, b) {
-                                final aSelected = selected.contains(a);
-                                final bSelected = selected.contains(b);
-                                if (aSelected != bSelected) {
-                                  return aSelected ? -1 : 1;
-                                }
-                                return a.compareTo(b);
-                              });
-
-                        if (controller.isCurrencyLoading.value) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
-                          );
-                        }
-                        if (options.isEmpty) {
-                          final error = controller.currencyError.value;
-                          return Center(
-                            child: Text(
-                              error == null || error.isEmpty
-                                  ? 'Currency list unavailable'
-                                  : error,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final code = filtered[index];
-                            final isChecked = selected.contains(code);
-                            return CheckboxListTile(
-                              value: isChecked,
-                              onChanged: (val) {
-                                controller.toggleCurrencySelection(
-                                  code,
-                                  val ?? false,
-                                );
-                                setState(() {});
-                              },
-                              title: Text(
-                                code,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              activeColor: AppColors.primary,
-                              checkColor: Colors.black,
-                              controlAffinity: ListTileControlAffinity.leading,
-                            );
-                          },
-                        );
-                      }),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
+        return _CurrencyPickerSheet(controller: controller);
       },
     );
+  }
+}
 
-    searchCtrl.dispose();
+class _CurrencyPickerSheet extends StatefulWidget {
+  final ProfileController controller;
+
+  const _CurrencyPickerSheet({required this.controller});
+
+  @override
+  State<_CurrencyPickerSheet> createState() => _CurrencyPickerSheetState();
+}
+
+class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
+  late final TextEditingController _searchCtrl;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl = TextEditingController();
+    widget.controller.refreshCurrencyOptions();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 520,
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.currency_exchange,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Select Currencies',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Icon(
+                    Icons.close,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchCtrl,
+              onChanged: (value) {
+                setState(() {
+                  _query = value.trim().toUpperCase();
+                });
+              },
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search currency code (e.g., USD)',
+                hintStyle: const TextStyle(
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: AppColors.surfaceLight,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Obx(() {
+                final selected = widget.controller.selectedCurrencies;
+                final options = widget.controller.currencyOptions.isEmpty
+                    ? selected
+                    : widget.controller.currencyOptions;
+                final filtered =
+                    (_query.isEmpty
+                          ? options
+                          : options
+                                .where(
+                                  (code) => code.contains(
+                                    _query.toUpperCase(),
+                                  ),
+                                )
+                                .toList())
+                      ..sort((a, b) {
+                        final aSelected = selected.contains(a);
+                        final bSelected = selected.contains(b);
+                        if (aSelected != bSelected) {
+                          return aSelected ? -1 : 1;
+                        }
+                        return a.compareTo(b);
+                      });
+
+                if (widget.controller.isCurrencyLoading.value) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                    ),
+                  );
+                }
+                if (options.isEmpty) {
+                  final error = widget.controller.currencyError.value;
+                  return Center(
+                    child: Text(
+                      error == null || error.isEmpty
+                          ? 'Currency list unavailable'
+                          : error,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final code = filtered[index];
+                    final isChecked = selected.contains(code);
+                    return CheckboxListTile(
+                      value: isChecked,
+                      onChanged: (val) {
+                        widget.controller.toggleCurrencySelection(
+                          code,
+                          val ?? false,
+                        );
+                        setState(() {});
+                      },
+                      title: Text(
+                        currency_names.CurrencyNames.display(code),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      activeColor: AppColors.primary,
+                      checkColor: Colors.black,
+                      controlAffinity: ListTileControlAffinity.leading,
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

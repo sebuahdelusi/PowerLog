@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
 import '../controllers/appliances_controller.dart';
 import '../../../data/models/appliance_model.dart';
+import '../../../services/exchange_rate_service.dart';
 
 class AppliancesView extends GetView<AppliancesController> {
   const AppliancesView({super.key});
+
+  String _formatCurrency(double amount) {
+    return Get.find<ExchangeRateService>().formatIdrToDefault(amount);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +96,7 @@ class AppliancesView extends GetView<AppliancesController> {
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 4),
           Text(
-            NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(total),
+            _formatCurrency(total),
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
           ),
         ],
@@ -199,7 +203,7 @@ class AppliancesView extends GetView<AppliancesController> {
               children: [
                 const Text('Cost/mo', style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
                 Text(
-                  NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(cost),
+                  _formatCurrency(cost),
                   style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ],

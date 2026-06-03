@@ -245,7 +245,7 @@ class SessionService {
     );
   }
 
-  Future<_RatesCache?> getRatesCache(String base) async {
+  Future<RatesCache?> getRatesCache(String base) async {
     final val = await _storage.read(key: _keyCurrencyRatesJson);
     if (val == null || val.isEmpty) return null;
     final decoded = jsonDecode(val);
@@ -270,7 +270,7 @@ class SessionService {
       }
     });
 
-    return _RatesCache(rates, fetchedAt);
+    return RatesCache(rates, fetchedAt);
   }
 
   Future<void> clearRatesCache() async {
@@ -291,7 +291,7 @@ class SessionService {
     );
   }
 
-  Future<_CurrencyListCache?> getCurrencyListCache() async {
+  Future<CurrencyListCache?> getCurrencyListCache() async {
     final val = await _storage.read(key: _keyCurrencyListJson);
     if (val == null || val.isEmpty) return null;
     final decoded = jsonDecode(val);
@@ -304,7 +304,7 @@ class SessionService {
     if (rawCodes is! List) return null;
 
     final codes = rawCodes.map((e) => e.toString().toUpperCase()).toList();
-    return _CurrencyListCache(codes, fetchedAt);
+    return CurrencyListCache(codes, fetchedAt);
   }
 
   Future<void> clearCurrencyListCache() async {
@@ -325,16 +325,16 @@ class SessionService {
   }
 }
 
-class _RatesCache {
+class RatesCache {
   final Map<String, double> rates;
   final DateTime fetchedAt;
 
-  const _RatesCache(this.rates, this.fetchedAt);
+  const RatesCache(this.rates, this.fetchedAt);
 }
 
-class _CurrencyListCache {
+class CurrencyListCache {
   final List<String> codes;
   final DateTime fetchedAt;
 
-  const _CurrencyListCache(this.codes, this.fetchedAt);
+  const CurrencyListCache(this.codes, this.fetchedAt);
 }

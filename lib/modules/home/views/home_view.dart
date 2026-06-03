@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../services/exchange_rate_service.dart';
+import 'package:powerlog/utils/currency_names.dart' as currency_names;
 import '../controllers/home_controller.dart';
 
 class HomeView extends GetView<HomeController> {
@@ -61,7 +61,7 @@ class HomeView extends GetView<HomeController> {
 
 // ── Gyro Header
 class _GyroHeader extends GetView<HomeController> {
-  const _GyroHeader({Key? key}) : super(key: key);
+  const _GyroHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +165,7 @@ class _GyroHeader extends GetView<HomeController> {
 
 // ── Estimator Card
 class _EstimatorCard extends GetView<HomeController> {
-  const _EstimatorCard({Key? key}) : super(key: key);
+  const _EstimatorCard();
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +414,7 @@ class _EstimatorCard extends GetView<HomeController> {
           const Divider(color: AppColors.surfaceLight, height: 24),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Convert to:', style: TextStyle(color: AppColors.textPrimary)),
-            DropdownButton<String>(value: active, dropdownColor: AppColors.surfaceLight, underline: const SizedBox(), icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary), onChanged: (String? newValue) { if (newValue != null) setState(() { selected = newValue; }); }, items: list.map<DropdownMenuItem<String>>((String value) { return DropdownMenuItem<String>(value: value, child: Text(value, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold))); }).toList())
+            DropdownButton<String>(value: active, dropdownColor: AppColors.surfaceLight, underline: const SizedBox(), icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary), onChanged: (String? newValue) async { if (newValue != null) { await exchange.setDefaultCurrency(newValue); setState(() { selected = newValue; }); } }, items: list.map<DropdownMenuItem<String>>((String value) { return DropdownMenuItem<String>(value: value, child: Text(currency_names.CurrencyNames.display(value), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold))); }).toList())
           ]),
           const SizedBox(height: 16),
           Row(children: [
@@ -434,5 +434,5 @@ class _EstimatorCard extends GetView<HomeController> {
 }
 
 String _formatCurrency(double amount) {
-  return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(amount);
+  return Get.find<ExchangeRateService>().formatIdrToDefault(amount);
 }
