@@ -56,6 +56,20 @@ class AppliancesController extends GetxController {
     await loadAppliances();
   }
 
+  Future<void> updateAppliance(int id, String name, String watt, String hours) async {
+    try {
+      await _repo.updateAppliance(id, name, watt, hours);
+      await loadAppliances();
+      Get.snackbar('Success', 'Appliance updated',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Error', e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white);
+    }
+  }
+
   double get totalMonthlyCost {
     return appliances.fold(0.0, (sum, item) => sum + _repo.calculateMonthlyCost(item));
   }

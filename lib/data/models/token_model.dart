@@ -9,6 +9,7 @@ class TokenModel {
   final bool includeTax;
   final double fixedFee;
   final bool includeFixedFee;
+  final String userId; // username pemilik data ini
 
   const TokenModel({
     this.id,
@@ -21,6 +22,7 @@ class TokenModel {
     required this.includeTax,
     required this.fixedFee,
     required this.includeFixedFee,
+    required this.userId,
   });
 
   Map<String, dynamic> toMap() => {
@@ -34,6 +36,7 @@ class TokenModel {
         'include_tax': includeTax ? 1 : 0,
         'fixed_fee': fixedFee,
         'include_fixed_fee': includeFixedFee ? 1 : 0,
+        'user_id': userId,
       };
 
   factory TokenModel.fromMap(Map<String, dynamic> map) => TokenModel(
@@ -47,5 +50,6 @@ class TokenModel {
         includeTax: (map['include_tax'] as int) == 1,
         fixedFee: (map['fixed_fee'] as num).toDouble(),
         includeFixedFee: (map['include_fixed_fee'] as int) == 1,
+        userId: map['user_id'] as String? ?? '',
       );
 }

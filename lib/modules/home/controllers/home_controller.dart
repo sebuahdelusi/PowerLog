@@ -4,8 +4,10 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:powerlog/data/models/appliance_model.dart';
+import 'package:powerlog/data/models/log_model.dart';
 import 'package:powerlog/data/models/token_model.dart';
 import 'package:powerlog/data/repositories/appliance_repository.dart';
+import 'package:powerlog/data/repositories/log_repository.dart';
 import 'package:powerlog/data/repositories/token_repository.dart';
 import 'package:powerlog/modules/dashboard/controllers/dashboard_controller.dart';
 import 'package:powerlog/modules/analytics/controllers/analytics_controller.dart';
@@ -13,12 +15,14 @@ import 'package:powerlog/services/notification_service.dart'
   as powerlog_notification;
 import 'package:powerlog/services/sensor_service.dart';
 import 'package:powerlog/services/session_service.dart';
+import 'package:powerlog/app/theme/app_colors.dart';
 import 'package:powerlog/services/tariff_service.dart';
 
 class HomeController extends GetxController {
   final _sensors = SensorService();
   final _applianceRepo = ApplianceRepository();
   final _tokenRepo = TokenRepository();
+  final _logRepo = LogRepository();
   final _tariff = Get.find<TariffService>();
   final _session = SessionService();
 
@@ -30,6 +34,12 @@ class HomeController extends GetxController {
   final tokenDate = DateTime.now().obs;
   final isConfirming = false.obs;
   final now = DateTime.now().obs;
+
+  // ── Log state ─────────────────────────────────────────────────────────────
+  final logs = <LogModel>[].obs;
+  final isLogsLoading = false.obs;
+  final logInputCtrl = TextEditingController();
+  final logDateCtrl = TextEditingController();
 
   // ── Gyroscope ─────────────────────────────────────────────────────────────
   final gyroX = 0.0.obs; // angular velocity x-axis
@@ -56,6 +66,7 @@ class HomeController extends GetxController {
     });
     resumeSensors();
     loadAppliances();
+    loadLogs();
     _loadLatestToken();
     _loadTariffPlan();
     _startClock();
@@ -64,6 +75,8 @@ class HomeController extends GetxController {
   @override
   void onClose() {
     tokenCtrl.dispose();
+    logInputCtrl.dispose();
+    logDateCtrl.dispose();
     pauseSensors();
     _sensors.dispose();
     _clockTimer?.cancel();
@@ -117,6 +130,105 @@ class HomeController extends GetxController {
     isAppliancesLoading.value = true;
     appliances.value = await _applianceRepo.fetchAllAppliances();
     isAppliancesLoading.value = false;
+  }
+
+  Future<void> loadLogs() async {
+    isLogsLoading.value = true;
+    logs.value = await _logRepo.fetchAllLogs();
+    logDateCtrl.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    isLogsLoading.value = false;
+  }
+
+  Future<void> addLog() async {
+    final error = await _logRepo.addLog(logInputCtrl.text, date: logDateCtrl.text);
+    if (error != null) {
+      Get.snackbar('Error', error,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white);
+    } else {
+      logInputCtrl.clear();
+      await loadLogs();
+      Get.snackbar('Success', 'Log saved',
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  Future<void> deleteLog(int id) async {
+    final error = await _logRepo.deleteLog(id);
+    if (error != null) {
+      Get.snackbar('Error', error,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white);
+    } else {
+      await loadLogs();
+    }
+  }
+
+  void showEditLogDialog(int id, String currentKwh, String currentDate) {
+    final editKwhCtrl = TextEditingController(text: currentKwh);
+    final editDateCtrl = TextEditingController(text: currentDate);
+
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Edit Log', style: TextStyle(color: AppColors.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: editKwhCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'kWh Usage',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: editDateCtrl,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Date (yyyy-MM-dd)',
+                labelStyle: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back();
+              final error = await _logRepo.updateLog(id, editKwhCtrl.text, date: editDateCtrl.text);
+              if (error != null) {
+                Get.snackbar('Error', error,
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red.withValues(alpha: 0.8),
+                    colorText: Colors.white);
+              } else {
+                await loadLogs();
+                Get.snackbar('Success', 'Log updated',
+                    snackPosition: SnackPosition.BOTTOM);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    editKwhCtrl.dispose();
+    editDateCtrl.dispose();
   }
 
   Future<void> refreshEstimator() async {
@@ -284,6 +396,7 @@ class HomeController extends GetxController {
         includeTax: cfg.includeTax,
         fixedFee: cfg.fixedFee,
         includeFixedFee: cfg.includeFixedFee,
+        userId: _session.getCachedUsername(),
       );
 
       await _tokenRepo.addOrUpdateToken(token);

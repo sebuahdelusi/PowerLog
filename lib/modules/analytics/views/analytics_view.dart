@@ -278,6 +278,24 @@ class AnalyticsView extends GetView<AnalyticsController> {
                         fontSize: 11,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () async {
+                        final confirm = await Get.dialog<bool>(
+                          AlertDialog(
+                            backgroundColor: AppColors.surface,
+                            title: const Text('Delete Token', style: TextStyle(color: AppColors.textPrimary)),
+                            content: const Text('Delete this token entry?', style: TextStyle(color: AppColors.textSecondary)),
+                            actions: [
+                              TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary))),
+                              ElevatedButton(onPressed: () => Get.back(result: true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white), child: const Text('Delete')),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) controller.deleteToken(token.id!);
+                      },
+                      child: const Icon(Icons.delete_outline, color: AppColors.error, size: 18),
+                    ),
                   ],
                 ),
               );

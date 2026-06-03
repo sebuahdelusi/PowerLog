@@ -68,6 +68,11 @@ class AnalyticsController extends GetxController {
     isLoading.value = false;
   }
 
+  Future<void> deleteToken(int id) async {
+    await _tokenRepo.deleteToken(id);
+    await loadData();
+  }
+
   TariffConfig get tariffConfig => _tariff.config.value;
 
   String get planCode =>

@@ -6,7 +6,7 @@ import '../models/token_model.dart';
 
 class DatabaseHelper {
   static const _dbName = 'powerlog.db';
-  static const _dbVersion = 5; // bumped: added input_at to tokens table
+  static const _dbVersion = 6; // added user_id to logs, appliances, tokens
 
   static const tableUsers = 'users';
   static const tableLogs = 'logs';
@@ -35,10 +35,46 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    await _createUsersTable(db);
-    await _createLogsTable(db);
-    await _createAppliancesTable(db);
-    await _createTokensTable(db);
+    await db.execute('''
+      CREATE TABLE $tableUsers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        encrypted_password TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $tableLogs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        kwh_usage REAL NOT NULL,
+        estimated_cost REAL NOT NULL,
+        user_id TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $tableAppliances (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        wattage REAL NOT NULL,
+        hours_per_day REAL NOT NULL,
+        user_id TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $tableTokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token_date TEXT NOT NULL,
+        input_at TEXT,
+        amount_idr REAL NOT NULL,
+        plan_code TEXT NOT NULL,
+        rate_per_kwh REAL NOT NULL,
+        tax_percent REAL NOT NULL,
+        include_tax INTEGER NOT NULL,
+        fixed_fee REAL NOT NULL,
+        include_fixed_fee INTEGER NOT NULL,
+        user_id TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -57,16 +93,17 @@ class DatabaseHelper {
         'UPDATE $tableTokens SET input_at = token_date WHERE input_at IS NULL',
       );
     }
-  }
-
-  Future<void> _createUsersTable(Database db) async {
-    await db.execute('''
-      CREATE TABLE $tableUsers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        encrypted_password TEXT NOT NULL
-      )
-    ''');
+    if (oldVersion < 6) {
+      await db.execute(
+        'ALTER TABLE $tableLogs ADD COLUMN user_id TEXT NOT NULL DEFAULT ""',
+      );
+      await db.execute(
+        'ALTER TABLE $tableAppliances ADD COLUMN user_id TEXT NOT NULL DEFAULT ""',
+      );
+      await db.execute(
+        'ALTER TABLE $tableTokens ADD COLUMN user_id TEXT NOT NULL DEFAULT ""',
+      );
+    }
   }
 
   Future<void> _createLogsTable(Database db) async {
@@ -151,31 +188,36 @@ class DatabaseHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<LogModel>> getAllLogs() async {
-    final db = await database;
-    final maps = await db.query(tableLogs, orderBy: 'date DESC');
-    return maps.map(LogModel.fromMap).toList();
-  }
-
-  Future<LogModel?> getLogByDate(String date) async {
+  Future<List<LogModel>> getAllLogs(String userId) async {
     final db = await database;
     final maps = await db.query(
       tableLogs,
-      where: 'date = ?',
-      whereArgs: [date],
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'date DESC',
+    );
+    return maps.map(LogModel.fromMap).toList();
+  }
+
+  Future<LogModel?> getLogByDate(String date, String userId) async {
+    final db = await database;
+    final maps = await db.query(
+      tableLogs,
+      where: 'date = ? AND user_id = ?',
+      whereArgs: [date, userId],
       limit: 1,
     );
     if (maps.isEmpty) return null;
     return LogModel.fromMap(maps.first);
   }
 
-  Future<int> updateLogByDate(String date, double kwh, double cost) async {
+  Future<int> updateLogByDate(String date, double kwh, double cost, String userId) async {
     final db = await database;
     return db.update(
       tableLogs,
       {'kwh_usage': kwh, 'estimated_cost': cost},
-      where: 'date = ?',
-      whereArgs: [date],
+      where: 'date = ? AND user_id = ?',
+      whereArgs: [date, userId],
     );
   }
 
@@ -217,14 +259,24 @@ class DatabaseHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<Map<String, dynamic>>> getAllAppliances() async {
+  Future<List<Map<String, dynamic>>> getAllAppliances(String userId) async {
     final db = await database;
-    return db.query(tableAppliances, orderBy: 'name ASC');
+    return db.query(
+      tableAppliances,
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'name ASC',
+    );
   }
 
   Future<int> deleteAppliance(int id) async {
     final db = await database;
     return db.delete(tableAppliances, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> updateAppliance(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    return db.update(tableAppliances, data, where: 'id = ?', whereArgs: [id]);
   }
 
   // ── Tokens ─────────────────────────────────────────────────────────────
@@ -235,18 +287,22 @@ class DatabaseHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<List<Map<String, dynamic>>> getAllTokens() async {
+  Future<List<Map<String, dynamic>>> getAllTokens(String userId) async {
     final db = await database;
     return db.query(
       tableTokens,
+      where: 'user_id = ?',
+      whereArgs: [userId],
       orderBy: 'input_at DESC, token_date DESC, id DESC',
     );
   }
 
-  Future<Map<String, dynamic>?> getLatestToken() async {
+  Future<Map<String, dynamic>?> getLatestToken(String userId) async {
     final db = await database;
     final maps = await db.query(
       tableTokens,
+      where: 'user_id = ?',
+      whereArgs: [userId],
       orderBy: 'input_at DESC, token_date DESC, id DESC',
       limit: 1,
     );
@@ -254,25 +310,25 @@ class DatabaseHelper {
     return maps.first;
   }
 
-  Future<Map<String, dynamic>?> getTokenByDate(String date) async {
+  Future<Map<String, dynamic>?> getTokenByDate(String date, String userId) async {
     final db = await database;
     final maps = await db.query(
       tableTokens,
-      where: 'token_date = ?',
-      whereArgs: [date],
+      where: 'token_date = ? AND user_id = ?',
+      whereArgs: [date, userId],
       limit: 1,
     );
     if (maps.isEmpty) return null;
     return maps.first;
   }
 
-  Future<int> updateTokenByDate(String date, TokenModel token) async {
+  Future<int> updateTokenByDate(String date, String userId, TokenModel token) async {
     final db = await database;
     return db.update(
       tableTokens,
       token.toMap()..remove('id'),
-      where: 'token_date = ?',
-      whereArgs: [date],
+      where: 'token_date = ? AND user_id = ?',
+      whereArgs: [date, userId],
     );
   }
 

@@ -667,11 +667,15 @@ class _SettingsSection extends GetView<ProfileController> {
                           .map(
                             (code) => DropdownMenuItem(
                               value: code,
-                              child: Text(
-                                currency_names.CurrencyNames.display(code),
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
+                              child: SizedBox(
+                                width: 200,
+                                child: Text(
+                                  currency_names.CurrencyNames.display(code),
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),

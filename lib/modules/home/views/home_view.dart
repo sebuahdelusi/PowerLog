@@ -44,6 +44,8 @@ class HomeView extends GetView<HomeController> {
               SizedBox(height: 8),
               _EstimatorCard(),
               SizedBox(height: 16),
+              _LogSection(),
+              SizedBox(height: 24),
             ],
           ),
         ),
@@ -435,4 +437,160 @@ class _EstimatorCard extends GetView<HomeController> {
 
 String _formatCurrency(double amount) {
   return Get.find<ExchangeRateService>().formatIdrToDefault(amount);
+}
+
+// ── Log Section ────────────────────────────────────────────────────────────
+class _LogSection extends GetView<HomeController> {
+  const _LogSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.surfaceLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.history, color: AppColors.secondary, size: 18),
+              ),
+              const SizedBox(width: 12),
+              const Text('Daily Usage Log',
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Input form
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: controller.logInputCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'kWh (e.g. 4.2)',
+                    hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 13),
+                    filled: true,
+                    fillColor: AppColors.surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: controller.logDateCtrl,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'yyyy-MM-dd',
+                    hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5), fontSize: 13),
+                    filled: true,
+                    fillColor: AppColors.surfaceLight,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: controller.addLog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Log list
+          Obx(() {
+            if (controller.isLogsLoading.value) {
+              return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: AppColors.primary)));
+            }
+            if (controller.logs.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('No logs yet. Add your daily kWh usage above.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              );
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: controller.logs.length > 5 ? 5 : controller.logs.length,
+              separatorBuilder: (_, __) => const Divider(color: AppColors.surfaceLight, height: 1),
+              itemBuilder: (context, index) {
+                final log = controller.logs[index];
+                final cost = log.estimatedCost;
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${log.kwhUsage.toStringAsFixed(2)} kWh',
+                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: Text(log.date,
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_formatCurrency(cost),
+                          style: const TextStyle(color: AppColors.secondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => controller.showEditLogDialog(
+                          log.id!,
+                          log.kwhUsage.toStringAsFixed(2),
+                          log.date,
+                        ),
+                        child: const Icon(Icons.edit_outlined, color: AppColors.textSecondary, size: 18),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () async {
+                          final confirm = await Get.dialog<bool>(
+                            AlertDialog(
+                              backgroundColor: AppColors.surface,
+                              title: const Text('Delete Log', style: TextStyle(color: AppColors.textPrimary)),
+                              content: const Text('Delete this log entry?', style: TextStyle(color: AppColors.textSecondary)),
+                              actions: [
+                                TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary))),
+                                ElevatedButton(onPressed: () => Get.back(result: true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white), child: const Text('Delete')),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) controller.deleteLog(log.id!);
+                        },
+                        child: const Icon(Icons.delete_outline, color: AppColors.error, size: 18),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
 }

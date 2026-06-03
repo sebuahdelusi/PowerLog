@@ -28,11 +28,18 @@ class SessionService {
 
   final _storage = const FlutterSecureStorage();
 
+  /// In-memory cache of the current username — sync access for repositories.
+  String _cachedUsername = '';
+
+  /// Returns the cached username synchronously. Set via [saveSession].
+  String getCachedUsername() => _cachedUsername;
+
   Future<void> saveSession(String username) async {
     // Token = base64(username:timestamp) — lightweight, local-only
     final token = _buildToken(username);
     await _storage.write(key: _keySessionToken, value: token);
     await _storage.write(key: _keyUsername, value: username);
+    _cachedUsername = username;
   }
 
   Future<bool> hasActiveSession() async {
@@ -313,6 +320,7 @@ class SessionService {
 
   Future<void> clearSession() async {
     await _storage.delete(key: _keySessionToken);
+    _cachedUsername = '';
     final bio = await isBiometricEnabled();
     if (!bio) {
       await _storage.delete(key: _keyUsername);
