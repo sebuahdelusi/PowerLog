@@ -20,12 +20,14 @@ class AnalyticsView extends GetView<AnalyticsController> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: controller.loadData,
-          )
+          ),
         ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         }
         if (controller.appliances.isEmpty) {
           return _buildEmptyState(
@@ -69,9 +71,10 @@ class AnalyticsView extends GetView<AnalyticsController> {
                 const Text(
                   'Appliance Breakdown',
                   style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600),
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _buildApplianceList(),
@@ -91,11 +94,11 @@ class AnalyticsView extends GetView<AnalyticsController> {
     final includeTax = token?.includeTax ?? controller.tariffConfig.includeTax;
     final taxNote = includeTax ? 'incl tax' : 'excl tax';
     final includeFee =
-      token?.includeFixedFee ?? controller.tariffConfig.includeFixedFee;
+        token?.includeFixedFee ?? controller.tariffConfig.includeFixedFee;
     final fixedFee = token?.fixedFee ?? controller.tariffConfig.fixedFee;
     final feeNote = includeFee && fixedFee > 0
-      ? ' + fixed fee ${_formatCurrency(fixedFee)}'
-      : '';
+        ? ' + fixed fee ${_formatCurrency(fixedFee)}'
+        : '';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -106,14 +109,11 @@ class AnalyticsView extends GetView<AnalyticsController> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
-          const Icon(Icons.timer_outlined,
-              color: AppColors.primary, size: 32),
+          const Icon(Icons.timer_outlined, color: AppColors.primary, size: 32),
           const SizedBox(height: 12),
           const Text(
             'Estimated Token Duration',
@@ -131,7 +131,10 @@ class AnalyticsView extends GetView<AnalyticsController> {
           const SizedBox(height: 10),
           Text(
             'Token: ${_formatCurrency(controller.tokenIdr)}  •  ${controller.tokenKwh.toStringAsFixed(2)} kWh',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 4),
           GestureDetector(
@@ -139,32 +142,43 @@ class AnalyticsView extends GetView<AnalyticsController> {
             child: const Text(
               'convert ↔',
               style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600),
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Token date: ${controller.tokenDateLabel}',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'Estimated end: ${controller.estimatedEndDateLabel}',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Plan: ${controller.tariffPlanLabel}  •  Meter: ${controller.meterCapacityLabel}',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Rate used: ${_formatCurrency(rate)}/kWh ($taxNote)$feeNote',
             style: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.7),
-                fontSize: 11),
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
+              fontSize: 11,
+            ),
           ),
           if (controller.capacityCheckNote.isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -198,15 +212,22 @@ class AnalyticsView extends GetView<AnalyticsController> {
               const Text(
                 'Daily Usage Summary',
                 style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600),
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildKeyValue('Total power', '${controller.totalWatt.toStringAsFixed(0)} W'),
-          _buildKeyValue('Daily usage', '${controller.totalDailyKwh.toStringAsFixed(2)} kWh'),
+          _buildKeyValue(
+            'Total power',
+            '${controller.totalWatt.toStringAsFixed(0)} W',
+          ),
+          _buildKeyValue(
+            'Daily usage',
+            '${controller.totalDailyKwh.toStringAsFixed(2)} kWh',
+          ),
           _buildKeyValue('Appliances', '${controller.appliances.length} items'),
         ],
       ),
@@ -235,9 +256,10 @@ class AnalyticsView extends GetView<AnalyticsController> {
                 const Text(
                   'Token Log',
                   style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600),
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -284,17 +306,42 @@ class AnalyticsView extends GetView<AnalyticsController> {
                         final confirm = await Get.dialog<bool>(
                           AlertDialog(
                             backgroundColor: AppColors.surface,
-                            title: const Text('Delete Token', style: TextStyle(color: AppColors.textPrimary)),
-                            content: const Text('Delete this token entry?', style: TextStyle(color: AppColors.textSecondary)),
+                            title: const Text(
+                              'Delete Token',
+                              style: TextStyle(color: AppColors.textPrimary),
+                            ),
+                            content: const Text(
+                              'Delete this token entry?',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
                             actions: [
-                              TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary))),
-                              ElevatedButton(onPressed: () => Get.back(result: true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white), child: const Text('Delete')),
+                              TextButton(
+                                onPressed: () => Get.back(result: false),
+                                child: const Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Get.back(result: true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.error,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Delete'),
+                              ),
                             ],
                           ),
                         );
                         if (confirm == true) controller.deleteToken(token.id!);
                       },
-                      child: const Icon(Icons.delete_outline, color: AppColors.error, size: 18),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: AppColors.error,
+                        size: 18,
+                      ),
                     ),
                   ],
                 ),
@@ -316,8 +363,11 @@ class AnalyticsView extends GetView<AnalyticsController> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: AppColors.error, size: 18),
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.error,
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -355,24 +405,32 @@ class AnalyticsView extends GetView<AnalyticsController> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.electrical_services_outlined,
-                    color: AppColors.primary, size: 18),
+                child: const Icon(
+                  Icons.electrical_services_outlined,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(app.name,
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      app.name,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       '${app.wattage.toStringAsFixed(0)} W • ${app.hoursPerDay.toStringAsFixed(1)} h/day',
                       style: const TextStyle(
-                          color: AppColors.textSecondary, fontSize: 11),
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -380,9 +438,10 @@ class AnalyticsView extends GetView<AnalyticsController> {
               Text(
                 '${app.dailyKwh.toStringAsFixed(2)} kWh',
                 style: const TextStyle(
-                    color: AppColors.secondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600),
+                  color: AppColors.secondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -397,15 +456,22 @@ class AnalyticsView extends GetView<AnalyticsController> {
       child: Row(
         children: [
           Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 12)),
-          ),
-          Text(value,
+            child: Text(
+              label,
               style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -424,21 +490,28 @@ class AnalyticsView extends GetView<AnalyticsController> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon,
-                size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+            Icon(
+              icon,
+              size: 64,
+              color: AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
             Text(
               title,
               style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600),
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -469,8 +542,9 @@ class AnalyticsView extends GetView<AnalyticsController> {
     Future<void> loadSheetData() async {
       final selectedList = await exchange.getSelectedCurrencies();
       final defaultCode = await exchange.getDefaultCurrency();
-      final nextCurrencies =
-          selectedList.isNotEmpty ? selectedList : ['USD', 'EUR', 'GBP'];
+      final nextCurrencies = selectedList.isNotEmpty
+          ? selectedList
+          : ['USD', 'EUR', 'GBP'];
       final nextSelected = nextCurrencies.contains(defaultCode)
           ? defaultCode
           : nextCurrencies.first;
@@ -521,19 +595,27 @@ class AnalyticsView extends GetView<AnalyticsController> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.currency_exchange,
-                        color: AppColors.primary),
+                    const Icon(
+                      Icons.currency_exchange,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 10),
-                    const Text('Token Conversion',
-                        style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Token Conversion',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const Spacer(),
                     GestureDetector(
                       onTap: () => Get.back(),
-                      child: const Icon(Icons.close,
-                          color: AppColors.textSecondary, size: 20),
+                      child: const Icon(
+                        Icons.close,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
                     ),
                   ],
                 ),
@@ -541,38 +623,71 @@ class AnalyticsView extends GetView<AnalyticsController> {
                 Text(
                   'Base: ${_formatCurrency(idrAmount)} IDR',
                   style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12),
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
                 const Divider(color: AppColors.surfaceLight, height: 24),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Convert to:',
-                        style: TextStyle(color: AppColors.textPrimary)),
-                    DropdownButton<String>(
-                      value: active,
-                      dropdownColor: AppColors.surfaceLight,
-                      underline: const SizedBox(),
-                      icon: const Icon(Icons.arrow_drop_down,
-                          color: AppColors.primary),
-                      onChanged: (String? newValue) async {
-                        if (newValue != null) {
-                          await exchange.setDefaultCurrency(newValue);
-                          setState(() {
-                            selected = newValue;
-                          });
-                        }
-                      },
-                      items: list
-                          .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(currency_names.CurrencyNames.display(value),
+                    const Text(
+                      'Convert to:',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: active,
+                        dropdownColor: AppColors.surfaceLight,
+                        underline: const SizedBox(),
+                        icon: const Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.primary,
+                        ),
+                        selectedItemBuilder: (ctx) {
+                          return list
+                              .map(
+                                (code) => Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    code,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList();
+                        },
+                        onChanged: (String? newValue) async {
+                          if (newValue != null) {
+                            await exchange.setDefaultCurrency(newValue);
+                            setState(() {
+                              selected = newValue;
+                            });
+                          }
+                        },
+                        items: list.map<DropdownMenuItem<String>>((
+                          String value,
+                        ) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(
+                              currency_names.CurrencyNames.display(value),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                               style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold)),
-                        );
-                      }).toList(),
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ],
                 ),
@@ -590,9 +705,10 @@ class AnalyticsView extends GetView<AnalyticsController> {
                         child: Text(
                           active,
                           style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold),
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -600,23 +716,27 @@ class AnalyticsView extends GetView<AnalyticsController> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(active,
-                            style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11,
-                                letterSpacing: 1)),
+                        Text(
+                          active,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                            letterSpacing: 1,
+                          ),
+                        ),
                         Text(
                           hasRate
                               ? exchange.format(active, converted)
                               : (isRateLoading
-                                  ? 'Loading rates...'
-                                : (rateError.isNotEmpty
-                                  ? rateError
-                                  : 'Rate unavailable')),
+                                    ? 'Loading rates...'
+                                    : (rateError.isNotEmpty
+                                          ? rateError
+                                          : 'Rate unavailable')),
                           style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
+                            color: AppColors.textPrimary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),

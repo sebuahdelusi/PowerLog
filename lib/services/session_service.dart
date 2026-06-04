@@ -13,6 +13,7 @@ class SessionService {
   static const _keyCustomReminderDateTime = 'custom_reminder_datetime';
   static const _keyAutoReminderDateTime = 'auto_reminder_datetime';
   static const _keyTimezoneCode = 'timezone_code';
+  static const _keyProfileImagePath = 'profile_image_path';
   static const _keyTariffPlan = 'tariff_plan';
   static const _keyTariffRate = 'tariff_rate';
   static const _keyTariffFixedFee = 'tariff_fixed_fee';
@@ -61,7 +62,10 @@ class SessionService {
   }
 
   Future<void> setNotificationEnabled(bool enabled) async {
-    await _storage.write(key: _keyNotificationEnabled, value: enabled.toString());
+    await _storage.write(
+      key: _keyNotificationEnabled,
+      value: enabled.toString(),
+    );
   }
 
   Future<bool> isNotificationEnabled() async {
@@ -86,7 +90,9 @@ class SessionService {
 
   Future<void> setCustomReminderEnabled(bool enabled) async {
     await _storage.write(
-        key: _keyCustomReminderEnabled, value: enabled.toString());
+      key: _keyCustomReminderEnabled,
+      value: enabled.toString(),
+    );
   }
 
   Future<bool> isCustomReminderEnabled() async {
@@ -131,6 +137,18 @@ class SessionService {
   Future<String> getTimezoneCode() async {
     final val = await _storage.read(key: _keyTimezoneCode);
     return val ?? 'WIB';
+  }
+
+  Future<void> setProfileImagePath(String path) async {
+    await _storage.write(key: _keyProfileImagePath, value: path);
+  }
+
+  Future<String?> getProfileImagePath() async {
+    return _storage.read(key: _keyProfileImagePath);
+  }
+
+  Future<void> clearProfileImagePath() async {
+    await _storage.delete(key: _keyProfileImagePath);
   }
 
   Future<void> setTariffPlanCode(String code) async {
@@ -180,7 +198,9 @@ class SessionService {
 
   Future<void> setTariffIncludeFixedFee(bool enabled) async {
     await _storage.write(
-        key: _keyTariffIncludeFixedFee, value: enabled.toString());
+      key: _keyTariffIncludeFixedFee,
+      value: enabled.toString(),
+    );
   }
 
   Future<bool> getTariffIncludeFixedFee() async {
@@ -225,10 +245,7 @@ class SessionService {
   }
 
   Future<void> setDefaultCurrency(String code) async {
-    await _storage.write(
-      key: _keyCurrencyDefault,
-      value: code.toUpperCase(),
-    );
+    await _storage.write(key: _keyCurrencyDefault, value: code.toUpperCase());
   }
 
   Future<String> getDefaultCurrency() async {
@@ -292,10 +309,7 @@ class SessionService {
       'fetchedAt': fetchedAt.toIso8601String(),
       'codes': codes.map((e) => e.toUpperCase()).toList(),
     };
-    await _storage.write(
-      key: _keyCurrencyListJson,
-      value: jsonEncode(payload),
-    );
+    await _storage.write(key: _keyCurrencyListJson, value: jsonEncode(payload));
   }
 
   Future<CurrencyListCache?> getCurrencyListCache() async {

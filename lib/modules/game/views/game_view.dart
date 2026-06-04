@@ -18,11 +18,13 @@ class GameView extends GetView<GameController> {
           onPressed: () => Get.back(),
         ),
         actions: [
-          Obx(() => IconButton(
-                icon: const Icon(Icons.lightbulb_outline),
-                onPressed: controller.canUseHint ? controller.useHint : null,
-                tooltip: controller.canUseHint ? 'Hint' : 'No hints left',
-              )),
+          Obx(
+            () => IconButton(
+              icon: const Icon(Icons.lightbulb_outline),
+              onPressed: controller.canUseHint ? controller.useHint : null,
+              tooltip: controller.canUseHint ? 'Hint' : 'No hints left',
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
             onPressed: controller.resetGame,
@@ -62,12 +64,20 @@ class _Instructions extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.touch_app_outlined, color: AppColors.primary, size: 20),
+          const Icon(
+            Icons.touch_app_outlined,
+            color: AppColors.primary,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
               'Align your phone to the target compass, then tap tiles to rotate them. Use hints if stuck. Shuffle to start a new puzzle.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -92,11 +102,14 @@ class _DifficultyRow extends GetView<GameController> {
         ),
         child: Row(
           children: [
-            const Text('Difficulty',
-                style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
+            const Text(
+              'Difficulty',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(width: 10),
             _DiffChip(
               label: 'Easy',
@@ -135,7 +148,11 @@ class _DiffChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _DiffChip({required this.label, required this.selected, required this.onTap});
+  const _DiffChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +207,8 @@ class _StatsRow extends GetView<GameController> {
           children: [
             _StatItem(
               label: 'Level',
-              value: '${controller.levelIndex.value + 1}/${controller.totalLevels}',
+              value:
+                  '${controller.levelIndex.value + 1}/${controller.totalLevels}',
             ),
             _StatItem(label: 'Moves', value: '${controller.moves.value}'),
             _StatItem(label: 'Time', value: time),
@@ -247,9 +265,13 @@ class _CompassRow extends GetView<GameController> {
               ),
               child: Transform.rotate(
                 angle: (heading * math.pi) / 180,
-                child: Icon(Icons.navigation,
-                    color: available ? AppColors.primary : AppColors.textSecondary,
-                    size: 20),
+                child: Icon(
+                  Icons.navigation,
+                  color: available
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  size: 20,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -257,18 +279,23 @@ class _CompassRow extends GetView<GameController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Compass Challenge',
-                      style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+                  const Text(
+                    'Compass Challenge',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     available
                         ? 'Target ${target.toStringAsFixed(0)}° • Current ${heading.toStringAsFixed(0)}°'
                         : 'Your device does not support compass',
                     style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 11),
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -282,9 +309,10 @@ class _CompassRow extends GetView<GameController> {
               child: Text(
                 statusText,
                 style: TextStyle(
-                    color: statusColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600),
+                  color: statusColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -304,14 +332,19 @@ class _StatItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value,
-            style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+        ),
       ],
     );
   }
@@ -332,61 +365,69 @@ class _GameBoard extends GetView<GameController> {
       controller.version.value; // subscribe for rebuilds
       final powered = controller.poweredCells;
 
-      return LayoutBuilder(builder: (context, constraints) {
-        final size = controller.gridSize;
-        // Available width for the tile columns
-        final availW = constraints.maxWidth
-            - _outerPadding * 2
-            - _indicatorW * 2
-            - _gap * 2;
-        final availH = constraints.maxHeight;
-        // Each tile occupies tileSize + tileGap pixels
-        final byW = (availW / size) - _tileGap;
-        final byH = (availH / size) - _tileGap;
-        final tileSize = math.min(byW, byH).clamp(24.0, 88.0);
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final size = controller.gridSize;
+          // Available width for the tile columns
+          final availW =
+              constraints.maxWidth -
+              _outerPadding * 2 -
+              _indicatorW * 2 -
+              _gap * 2;
+          final availH = constraints.maxHeight;
+          // Each tile occupies tileSize + tileGap pixels
+          final byW = (availW / size) - _tileGap;
+          final byH = (availH / size) - _tileGap;
+          final tileSize = math.min(byW, byH).clamp(24.0, 88.0);
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: _outerPadding),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _SourceIndicator(
-                powered: powered.contains('${controller.sourceRow},${controller.sourceCol}'),
-                tileSize: tileSize,
-                rowIndex: controller.sourceRow,
-                totalRows: size,
-              ),
-              const SizedBox(width: _gap),
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _outerPadding),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _SourceIndicator(
+                  powered: powered.contains(
+                    '${controller.sourceRow},${controller.sourceCol}',
+                  ),
+                  tileSize: tileSize,
+                  rowIndex: controller.sourceRow,
+                  totalRows: size,
+                ),
+                const SizedBox(width: _gap),
 
-              // Grid
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(size, (r) => Row(
+                // Grid
+                Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: List.generate(size, (c) {
-                    final tile = controller.grid[r][c];
-                    final isPowered = powered.contains('$r,$c');
-                    return _TileCell(
-                      tile: tile,
-                      isPowered: isPowered,
-                      tileSize: tileSize,
-                      onTap: () => controller.rotateTile(r, c),
-                    );
-                  }),
-                )),
-              ),
+                  children: List.generate(
+                    size,
+                    (r) => Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(size, (c) {
+                        final tile = controller.grid[r][c];
+                        final isPowered = powered.contains('$r,$c');
+                        return _TileCell(
+                          tile: tile,
+                          isPowered: isPowered,
+                          tileSize: tileSize,
+                          onTap: () => controller.rotateTile(r, c),
+                        );
+                      }),
+                    ),
+                  ),
+                ),
 
-              const SizedBox(width: _gap),
-              _BulbIndicator(
-                powered: controller.isWon.value,
-                tileSize: tileSize,
-                rowIndex: controller.targetRow,
-                totalRows: size,
-              ),
-            ],
-          ),
-        );
-      });
+                const SizedBox(width: _gap),
+                _BulbIndicator(
+                  powered: controller.isWon.value,
+                  tileSize: tileSize,
+                  rowIndex: controller.targetRow,
+                  totalRows: size,
+                ),
+              ],
+            ),
+          );
+        },
+      );
     });
   }
 }
@@ -408,6 +449,8 @@ class _SourceIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = tileSize + 6; // match tile height including margin
+    final showLabel = h >= 40;
+    final iconSize = (h * 0.58).clamp(14.0, 22.0);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -428,17 +471,25 @@ class _SourceIndicator extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.bolt,
-                  color: powered ? AppColors.primary : AppColors.textSecondary,
-                  size: 22),
-              const SizedBox(height: 2),
-              Text('PWR',
+              Icon(
+                Icons.bolt,
+                color: powered ? AppColors.primary : AppColors.textSecondary,
+                size: iconSize,
+              ),
+              if (showLabel) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'PWR',
                   style: TextStyle(
-                    color: powered ? AppColors.primary : AppColors.textSecondary,
+                    color: powered
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                     fontSize: 8,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
-                  )),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -465,6 +516,8 @@ class _BulbIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = tileSize + 6;
+    final showLabel = h >= 40;
+    final iconSize = (h * 0.58).clamp(14.0, 20.0);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -485,27 +538,36 @@ class _BulbIndicator extends StatelessWidget {
               color: powered ? AppColors.secondary : AppColors.surfaceLight,
             ),
             boxShadow: powered
-                ? [BoxShadow(
-                    color: AppColors.secondary.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    spreadRadius: 2,
-                  )]
+                ? [
+                    BoxShadow(
+                      color: AppColors.secondary.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ]
                 : [],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                powered ? '💡' : '🔌',
-                style: const TextStyle(fontSize: 20),
+              Icon(
+                powered ? Icons.lightbulb_rounded : Icons.power,
+                color: powered ? AppColors.secondary : AppColors.textSecondary,
+                size: iconSize,
               ),
-              const SizedBox(height: 2),
-              Text(powered ? 'ON!' : 'OFF',
+              if (showLabel) ...[
+                const SizedBox(height: 2),
+                Text(
+                  powered ? 'ON!' : 'OFF',
                   style: TextStyle(
-                    color: powered ? AppColors.secondary : AppColors.textSecondary,
+                    color: powered
+                        ? AppColors.secondary
+                        : AppColors.textSecondary,
                     fontSize: 8,
                     fontWeight: FontWeight.bold,
-                  )),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -588,10 +650,10 @@ class _WirePainter extends CustomPainter {
     // Draw wire segments from center to each connected edge
     for (final dir in connections) {
       final end = switch (dir) {
-        0 => Offset(cx, 0),           // North
-        1 => Offset(size.width, cy),  // East
+        0 => Offset(cx, 0), // North
+        1 => Offset(size.width, cy), // East
         2 => Offset(cx, size.height), // South
-        3 => Offset(0, cy),           // West
+        3 => Offset(0, cy), // West
         _ => center,
       };
       canvas.drawLine(center, end, wirePaint);
@@ -606,7 +668,8 @@ class _WirePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WirePainter old) =>
-      old.powered != powered || old.connections.toString() != connections.toString();
+      old.powered != powered ||
+      old.connections.toString() != connections.toString();
 }
 
 // ── Legend ────────────────────────────────────────────────────────────────────
@@ -637,7 +700,11 @@ class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
   final IconData icon;
-  const _LegendItem({required this.color, required this.label, required this.icon});
+  const _LegendItem({
+    required this.color,
+    required this.label,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -645,8 +712,7 @@ class _LegendItem extends StatelessWidget {
       children: [
         Icon(icon, color: color, size: 16),
         const SizedBox(width: 6),
-        Text(label,
-            style: TextStyle(color: color, fontSize: 12)),
+        Text(label, style: TextStyle(color: color, fontSize: 12)),
       ],
     );
   }

@@ -1,16 +1,23 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:powerlog/data/repositories/auth_repository.dart';
 import 'package:powerlog/services/biometric_service.dart';
 import 'package:powerlog/services/session_service.dart';
 import 'package:powerlog/utils/timezone_converter.dart';
-import 'package:powerlog/services/notification_service.dart' as powerlog_notification;
-import 'package:powerlog/data/repositories/log_repository.dart' as powerlog_log_repo;
-import 'package:powerlog/data/repositories/appliance_repository.dart' as powerlog_app_repo;
+import 'package:powerlog/services/notification_service.dart'
+    as powerlog_notification;
+import 'package:powerlog/data/repositories/log_repository.dart'
+    as powerlog_log_repo;
+import 'package:powerlog/data/repositories/appliance_repository.dart'
+    as powerlog_app_repo;
 import 'package:powerlog/services/pdf_service.dart' as powerlog_pdf_service;
 import 'package:powerlog/services/tariff_service.dart';
 import 'package:powerlog/services/exchange_rate_service.dart';
@@ -28,7 +35,9 @@ class ProfileController extends GetxController {
   // ── State ─────────────────────────────────────────────────────────────────
   final username = ''.obs;
   final currentTime = DateTime.now().obs; // UTC, updated every second
-  
+  final profileImagePath = RxnString();
+  final isPickingProfileImage = false.obs;
+
   final isBiometricSupported = false.obs;
   final isBiometricEnabled = false.obs;
   final isNotificationEnabled = false.obs;
@@ -56,11 +65,13 @@ class ProfileController extends GetxController {
 
   Timer? _clockTimer;
   StreamSubscription<MagnetometerEvent>? _magSub;
+  final _imagePicker = ImagePicker();
 
   @override
   void onInit() {
     super.onInit();
     _loadUsername();
+    _loadProfileImage();
     _startClock();
     _startCompass();
     _checkBiometric();
@@ -116,8 +127,10 @@ class ProfileController extends GetxController {
       }
       currencyError.value = exchange.lastError;
 
-      final filteredSelected =
-          _filterSelectedCurrencies(availableOptions, selected);
+      final filteredSelected = _filterSelectedCurrencies(
+        availableOptions,
+        selected,
+      );
       if (!filteredSelected.contains(defaultCode)) {
         defaultCode = filteredSelected.first;
         await exchange.setDefaultCurrency(defaultCode);
@@ -185,7 +198,9 @@ class ProfileController extends GetxController {
     final valid = options.isEmpty
         ? fallback
         : fallback.where((code) => options.contains(code)).toList();
-    return valid.isNotEmpty ? valid : (options.isNotEmpty ? [options.first] : []);
+    return valid.isNotEmpty
+        ? valid
+        : (options.isNotEmpty ? [options.first] : []);
   }
 
   Future<void> toggleCurrencySelection(String code, bool enabled) async {
@@ -278,7 +293,8 @@ class ProfileController extends GetxController {
   Future<void> _syncCustomReminder() async {
     if (!isCustomReminderEnabled.value) return;
     try {
-      final notifService = Get.find<powerlog_notification.NotificationService>();
+      final notifService =
+          Get.find<powerlog_notification.NotificationService>();
       await notifService.scheduleCustomReminder(
         enable: true,
         scheduledAt: customReminderDateTime.value,
@@ -289,6 +305,127 @@ class ProfileController extends GetxController {
   Future<void> _loadUsername() async {
     final name = await _session.getSessionUsername();
     username.value = name ?? 'User';
+  }
+
+  Future<void> _loadProfileImage() async {
+    final storedPath = await _session.getProfileImagePath();
+    if (storedPath == null || storedPath.isEmpty) {
+      profileImagePath.value = null;
+      return;
+    }
+
+    final file = File(storedPath);
+    if (await file.exists()) {
+      profileImagePath.value = storedPath;
+    } else {
+      profileImagePath.value = null;
+      await _session.clearProfileImagePath();
+    }
+  }
+
+  Future<void> chooseProfilePhoto() async {
+    if (isPickingProfileImage.value) return;
+
+    Get.bottomSheet(
+      Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textSecondary.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () {
+                  Get.back();
+                  pickProfilePhoto(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () {
+                  Get.back();
+                  pickProfilePhoto(ImageSource.camera);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  Future<void> pickProfilePhoto(ImageSource source) async {
+    if (isPickingProfileImage.value) return;
+
+    isPickingProfileImage.value = true;
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+      if (picked == null) return;
+
+      final savedPath = await _storeProfileImage(File(picked.path));
+      profileImagePath.value = savedPath;
+      await _session.setProfileImagePath(savedPath);
+    } catch (_) {
+      Get.snackbar('Profile Photo', 'Failed to update profile photo.');
+    } finally {
+      isPickingProfileImage.value = false;
+    }
+  }
+
+  Future<void> deleteProfilePhoto() async {
+    final storedPath = profileImagePath.value;
+    if (storedPath == null || storedPath.isEmpty) return;
+
+    try {
+      final file = File(storedPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+
+    profileImagePath.value = null;
+    await _session.clearProfileImagePath();
+  }
+
+  Future<String> _storeProfileImage(File sourceFile) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final profileDirectory = Directory(path.join(directory.path, 'profile'));
+    if (!await profileDirectory.exists()) {
+      await profileDirectory.create(recursive: true);
+    }
+
+    final extension = path.extension(sourceFile.path).isNotEmpty
+        ? path.extension(sourceFile.path)
+        : '.jpg';
+    final targetFile = File(
+      path.join(profileDirectory.path, 'avatar$extension'),
+    );
+
+    if (await targetFile.exists()) {
+      await targetFile.delete();
+    }
+
+    return sourceFile.copy(targetFile.path).then((file) => file.path);
   }
 
   Future<void> _checkBiometric() async {
@@ -331,7 +468,8 @@ class ProfileController extends GetxController {
     await _session.setCustomReminderEnabled(val);
 
     try {
-      final notifService = Get.find<powerlog_notification.NotificationService>();
+      final notifService =
+          Get.find<powerlog_notification.NotificationService>();
       await notifService.scheduleCustomReminder(
         enable: val,
         scheduledAt: customReminderDateTime.value,
@@ -350,7 +488,8 @@ class ProfileController extends GetxController {
 
     if (!isNotificationEnabled.value) return;
     try {
-      final notifService = Get.find<powerlog_notification.NotificationService>();
+      final notifService =
+          Get.find<powerlog_notification.NotificationService>();
       await notifService.scheduleDailyReminder(
         enable: true,
         hour: time.hour,
@@ -370,7 +509,8 @@ class ProfileController extends GetxController {
 
     if (!isCustomReminderEnabled.value) return;
     try {
-      final notifService = Get.find<powerlog_notification.NotificationService>();
+      final notifService =
+          Get.find<powerlog_notification.NotificationService>();
       await notifService.scheduleCustomReminder(
         enable: true,
         scheduledAt: dateTime,
@@ -378,7 +518,10 @@ class ProfileController extends GetxController {
     } catch (e) {
       customReminderDateTime.value = previous;
       await _session.setCustomReminderDateTime(previous);
-      Get.snackbar('Notification Error', 'Failed to reschedule custom reminder.');
+      Get.snackbar(
+        'Notification Error',
+        'Failed to reschedule custom reminder.',
+      );
     }
   }
 
@@ -390,14 +533,15 @@ class ProfileController extends GetxController {
 
   void _startCompass() {
     if (_magSub != null) return;
-    _magSub = magnetometerEventStream(
-      samplingPeriod: SensorInterval.gameInterval,
-    ).listen(
-      _onMagnetometer,
-      onError: (_) {
-        isCompassAvailable.value = false;
-      },
-    );
+    _magSub =
+        magnetometerEventStream(
+          samplingPeriod: SensorInterval.gameInterval,
+        ).listen(
+          _onMagnetometer,
+          onError: (_) {
+            isCompassAvailable.value = false;
+          },
+        );
   }
 
   void _onMagnetometer(MagnetometerEvent event) {
@@ -420,8 +564,9 @@ class ProfileController extends GetxController {
   }
 
   String get customReminderLabel {
-    return DateFormat('EEE, d MMM yyyy • HH:mm')
-        .format(customReminderDateTime.value);
+    return DateFormat(
+      'EEE, d MMM yyyy • HH:mm',
+    ).format(customReminderDateTime.value);
   }
 
   String get autoReminderSubtitle {
@@ -446,7 +591,8 @@ class ProfileController extends GetxController {
 
     if (isNotificationEnabled.value) {
       try {
-        final notifService = Get.find<powerlog_notification.NotificationService>();
+        final notifService =
+            Get.find<powerlog_notification.NotificationService>();
         await notifService.scheduleDailyReminder(
           enable: true,
           hour: reminderTime.value.hour,
@@ -457,7 +603,8 @@ class ProfileController extends GetxController {
 
     if (isCustomReminderEnabled.value) {
       try {
-        final notifService = Get.find<powerlog_notification.NotificationService>();
+        final notifService =
+            Get.find<powerlog_notification.NotificationService>();
         await notifService.scheduleCustomReminder(
           enable: true,
           scheduledAt: customReminderDateTime.value,
@@ -468,7 +615,8 @@ class ProfileController extends GetxController {
 
   void _applyTimezoneSelection() {
     try {
-      final notifService = Get.find<powerlog_notification.NotificationService>();
+      final notifService =
+          Get.find<powerlog_notification.NotificationService>();
       final code = timezones[selectedTimezoneIndex.value].code;
       notifService.setTimezoneCode(code);
     } catch (_) {}
@@ -612,7 +760,7 @@ class ProfileController extends GetxController {
 
   Future<void> seedMockLogs(String scenario) async {
     final logRepo = powerlog_log_repo.LogRepository();
-    
+
     try {
       final db = DatabaseHelper.instance;
       final activeDb = await db.database;

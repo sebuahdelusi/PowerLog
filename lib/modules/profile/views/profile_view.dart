@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:powerlog/utils/timezone_converter.dart';
@@ -52,17 +54,125 @@ class _ProfileCard extends GetView<ProfileController> {
       ),
       child: Column(
         children: [
-          // Avatar
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.primary, width: 2),
-              color: AppColors.surfaceLight,
-            ),
-            child: const Icon(Icons.person, size: 44, color: AppColors.primary),
-          ),
+          Obx(() {
+            final photoPath = controller.profileImagePath.value;
+            final hasPhoto = photoPath != null && File(photoPath).existsSync();
+
+            return Column(
+              children: [
+                GestureDetector(
+                  onTap: controller.isPickingProfileImage.value
+                      ? null
+                      : controller.chooseProfilePhoto,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 2,
+                          ),
+                          color: AppColors.surfaceLight,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: hasPhoto
+                            ? Image.file(File(photoPath), fit: BoxFit.cover)
+                            : const Icon(
+                                Icons.person,
+                                size: 44,
+                                color: AppColors.primary,
+                              ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.surface,
+                              width: 2,
+                            ),
+                          ),
+                          child: controller.isPickingProfileImage.value
+                              ? const SizedBox(
+                                  width: 10,
+                                  height: 10,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.edit,
+                                  size: 10,
+                                  color: Colors.white,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasPhoto) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 36,
+                    child: OutlinedButton.icon(
+                      onPressed: controller.isPickingProfileImage.value
+                          ? null
+                          : () async {
+                              final confirm = await Get.dialog<bool>(
+                                AlertDialog(
+                                  title: const Text('Hapus foto profil?'),
+                                  content: const Text(
+                                    'Foto profil yang tersimpan akan dihapus dari perangkat.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Get.back(result: false),
+                                      child: const Text('Batal'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Get.back(result: true),
+                                      child: const Text('Hapus'),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                await controller.deleteProfilePhoto();
+                              }
+                            },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.75),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      label: const Text(
+                        'Hapus Foto',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          }),
           const SizedBox(height: 14),
           Obx(
             () => Text(
@@ -256,10 +366,7 @@ class _AchievementsSection extends GetView<ProfileController> {
               const SizedBox(height: 8),
               const Text(
                 'Simulate electricity usage logs to verify the badge unlocking mechanics immediately:',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 10,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 10),
               ),
               const SizedBox(height: 10),
               SingleChildScrollView(
@@ -319,10 +426,7 @@ class _AchievementsSection extends GetView<ProfileController> {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: color.withValues(alpha: 0.3),
-              width: 1,
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -607,7 +711,9 @@ class _SettingsSection extends GetView<ProfileController> {
                       );
                     }
                     final preview = selected.take(4).map((c) => c).join(', ');
-                    final suffix = selected.length > 4 ? ' +${selected.length - 4} more' : '';
+                    final suffix = selected.length > 4
+                        ? ' +${selected.length - 4} more'
+                        : '';
                     return Text(
                       'Selected: $preview$suffix',
                       style: const TextStyle(
@@ -751,10 +857,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.currency_exchange,
-                  color: AppColors.primary,
-                ),
+                const Icon(Icons.currency_exchange, color: AppColors.primary),
                 const SizedBox(width: 10),
                 const Text(
                   'Select Currencies',
@@ -786,9 +889,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Search currency code (e.g., USD)',
-                hintStyle: const TextStyle(
-                  color: AppColors.textSecondary,
-                ),
+                hintStyle: const TextStyle(color: AppColors.textSecondary),
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 border: OutlineInputBorder(
@@ -809,9 +910,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                           ? options
                           : options
                                 .where(
-                                  (code) => code.contains(
-                                    _query.toUpperCase(),
-                                  ),
+                                  (code) => code.contains(_query.toUpperCase()),
                                 )
                                 .toList())
                       ..sort((a, b) {
@@ -825,9 +924,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
 
                 if (widget.controller.isCurrencyLoading.value) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                    ),
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   );
                 }
                 if (options.isEmpty) {
@@ -838,9 +935,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                           ? 'Currency list unavailable'
                           : error,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                      ),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   );
                 }
@@ -861,9 +956,7 @@ class _CurrencyPickerSheetState extends State<_CurrencyPickerSheet> {
                       },
                       title: Text(
                         currency_names.CurrencyNames.display(code),
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                        ),
+                        style: const TextStyle(color: AppColors.textPrimary),
                       ),
                       activeColor: AppColors.primary,
                       checkColor: Colors.black,

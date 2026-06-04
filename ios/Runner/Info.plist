@@ -47,5 +47,9 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID to authenticate and access PowerLog.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Use the camera to take a profile photo for PowerLog.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Use the photo library to choose a profile photo for PowerLog.</string>
 </dict>
 </plist>
