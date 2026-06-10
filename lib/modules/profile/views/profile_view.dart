@@ -756,37 +756,47 @@ class _SettingsSection extends GetView<ProfileController> {
                     if (options.isEmpty) {
                       return const SizedBox.shrink();
                     }
-                    return DropdownButton<String>(
-                      value: options.contains(value) ? value : options.first,
-                      dropdownColor: AppColors.surfaceLight,
-                      underline: const SizedBox(),
-                      icon: const Icon(
-                        Icons.arrow_drop_down,
-                        color: AppColors.primary,
-                      ),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          controller.setDefaultCurrency(newValue);
-                        }
-                      },
-                      items: options
-                          .map(
-                            (code) => DropdownMenuItem(
-                              value: code,
-                              child: SizedBox(
-                                width: 200,
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: options.contains(value) ? value : options.first,
+                        dropdownColor: AppColors.surfaceLight,
+                        icon: const Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.primary,
+                        ),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            controller.setDefaultCurrency(newValue);
+                          }
+                        },
+                        selectedItemBuilder: (BuildContext context) {
+                          return options.map<Widget>((String code) {
+                            return Center(
+                              child: Text(
+                                code,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          }).toList();
+                        },
+                        items: options
+                            .map(
+                              (code) => DropdownMenuItem(
+                                value: code,
                                 child: Text(
                                   currency_names.CurrencyNames.display(code),
-                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(),
+                            )
+                            .toList(),
+                      ),
                     );
                   }),
                   shape: RoundedRectangleBorder(
