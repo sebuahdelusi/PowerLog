@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:powerlog/data/repositories/auth_repository.dart';
 import 'package:powerlog/services/biometric_service.dart';
+import 'package:powerlog/app/theme/app_colors.dart';
 
 class AuthController extends GetxController {
   final _repo = AuthRepository();
@@ -57,7 +58,19 @@ class AuthController extends GetxController {
     if (error != null) {
       errorMessage.value = error;
     } else {
-      Get.offAllNamed('/dashboard');
+      if (isRegistering.value) {
+        isRegistering.value = false;
+        passwordCtrl.clear();
+        Get.snackbar(
+          'Success',
+          'Account created successfully. Please login.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.surface,
+          colorText: AppColors.textPrimary,
+        );
+      } else {
+        Get.offAllNamed('/dashboard');
+      }
     }
   }
 

@@ -43,7 +43,6 @@ class AuthRepository {
         encryptedPassword: hashed,
       );
       await _db.insertUser(user);
-      await _session.saveSession(username.trim());
       return null;
     } catch (e) {
       return 'Registration error: $e';
