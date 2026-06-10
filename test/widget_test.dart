@@ -3,7 +3,9 @@ import 'package:powerlog/main.dart';
 
 void main() {
   testWidgets('App launches', (WidgetTester tester) async {
-    await tester.pumpWidget(const PowerLogApp());
-    expect(find.text('PowerLog'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(const PowerLogApp());
+      expect(find.text('PowerLog'), findsOneWidget);
+    });
   });
 }

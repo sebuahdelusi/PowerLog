@@ -30,7 +30,7 @@ class SessionService {
   final _storage = const FlutterSecureStorage();
 
   /// In-memory cache of the current username — sync access for repositories.
-  String _cachedUsername = '';
+  static String _cachedUsername = '';
 
   /// Returns the cached username synchronously. Set via [saveSession].
   String getCachedUsername() => _cachedUsername;
